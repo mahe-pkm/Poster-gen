@@ -5,235 +5,378 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Store Poster Maker</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/styles.css">
-    <script src="/app.js" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=20260702-3">
+    <script src="/app.js?v=20260702-3" defer></script>
   </head>
   <body>
+    <header class="app-header">
+      <div class="app-brand">
+        <p class="eyebrow">Store Poster</p>
+        <h1>Daily Offer Maker</h1>
+      </div>
+      <nav class="app-tabs" aria-label="App sections">
+        <a class="app-tab-link" href="/products" data-tab-link="products">Products</a>
+        <a class="app-tab-link" href="/poster-builder" data-tab-link="poster-builder">Poster Builder</a>
+        <a class="app-tab-link" href="/templates" data-tab-link="templates">Templates</a>
+      </nav>
+      <span id="healthBadge" class="status-pill">Starting</span>
+    </header>
+
     <main class="app-shell">
-      <aside class="panel left-panel" aria-label="Poster controls">
-        <header class="panel-header">
-          <div>
-            <p class="eyebrow">Store Poster</p>
-            <h1>Daily Offer Maker</h1>
-          </div>
-          <span id="healthBadge" class="status-pill">Starting</span>
-        </header>
-
-        <section class="control-section" aria-label="Store details">
-          <div class="section-title">Store</div>
-          <label>
-            Brand
-            <input id="storeNameInput" type="text" autocomplete="off">
-          </label>
-          <label>
-            Local Name
-            <input id="localNameInput" type="text" autocomplete="off">
-          </label>
-          <div class="two-column">
-            <label>
-              Headline
-              <input id="headlineInput" type="text" autocomplete="off">
-            </label>
-            <label>
-              Subheadline
-              <input id="subheadlineInput" type="text" autocomplete="off">
-            </label>
-          </div>
-          <div class="two-column">
-            <label>
-              Phone
-              <input id="phoneInput" type="tel" autocomplete="off">
-            </label>
-            <label>
-              Valid Till
-              <input id="validUntilInput" type="text" autocomplete="off">
-            </label>
-          </div>
-          <label>
-            Delivery Text
-            <input id="deliveryTextInput" type="text" autocomplete="off">
-          </label>
-          <button id="saveBrandButton" class="secondary-button" type="button">Save Store</button>
-        </section>
-
-        <section class="control-section" aria-label="Template controls">
-          <div class="section-title">Layout</div>
-          <label>
-            Template
-            <select id="templateSelect"></select>
-          </label>
-          <label>
-            Price Tag
-            <select id="priceTagInput">
-              <option value="selling-only">Selling price only</option>
-              <option value="selling-mrp-off">Price + MRP + % OFF</option>
-              <option value="selling-off">Price + % OFF</option>
-              <option value="selling-mrp">Price + MRP</option>
-              <option value="selling-mrp-save">Price + MRP + Save</option>
-            </select>
-          </label>
-          <div class="preset-row" id="presetRow" aria-label="Grid presets">
-            <button type="button" data-preset="1">1</button>
-            <button type="button" data-preset="4">4</button>
-            <button type="button" data-preset="6">6</button>
-            <button type="button" data-preset="10">10</button>
-            <button type="button" data-preset="12">12</button>
-            <button type="button" data-preset="20">20</button>
-            <button type="button" data-preset="35">35</button>
-          </div>
-          <div class="three-column">
-            <label>
-              Columns
-              <input id="columnsInput" type="number" min="1" max="10" step="1">
-            </label>
-            <label>
-              Rows
-              <input id="rowsInput" type="number" min="1" max="10" step="1">
-            </label>
-            <label>
-              Gap
-              <input id="gapInput" type="number" min="0" max="18" step="1">
-            </label>
-          </div>
-          <div class="three-column">
-            <label>
-              Badge
-              <input id="badgeSizeInput" type="number" min="44" max="140" step="1">
-            </label>
-            <label>
-              Header
-              <input id="headerHeightInput" type="number" min="220" max="520" step="1">
-            </label>
-            <label>
-              Scale
-              <input id="exportScaleInput" type="number" min="1" max="4" step="1">
-            </label>
-          </div>
-          <button id="saveTemplateButton" class="secondary-button" type="button">Save Template</button>
-        </section>
-
-        <section class="control-section products-section" aria-label="Product list">
-          <div class="section-title-row">
-            <div class="section-title">Products</div>
+      <section class="tab-panel products-layout" data-tab-panel="products" aria-label="Products">
+        <aside class="panel products-panel" aria-label="Product list">
+          <header class="panel-header">
+            <div>
+              <p class="eyebrow">Products</p>
+              <h2>Product Manager</h2>
+            </div>
             <button id="addProductButton" class="mini-button" type="button">Add</button>
-          </div>
-          <label>
-            Search
-            <input id="productSearchInput" type="search" autocomplete="off">
-          </label>
-          <div class="list-toolbar">
-            <button id="selectVisibleButton" type="button">Select Visible</button>
-            <button id="clearSelectionButton" type="button">Clear</button>
-          </div>
-          <div id="productList" class="product-list"></div>
-        </section>
-      </aside>
+          </header>
 
-      <section class="workspace" aria-label="Poster preview">
-        <header class="workspace-toolbar">
-          <div>
-            <p class="eyebrow">Canvas</p>
-            <h2 id="posterTitle">GrandPlus Grocery Deals</h2>
+          <section class="control-section products-section is-collapsible" aria-label="Product manager" data-collapse-key="product-manager">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="product-manager">
+              <span class="section-title">Products</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <label>
+              Search
+              <input id="productSearchInput" type="search" autocomplete="off">
+            </label>
+            <div id="productList" class="product-list manager-list"></div>
+          </section>
+        </aside>
+
+        <section class="product-workspace" aria-label="Selected product editor">
+          <header class="workspace-toolbar">
+            <div>
+              <p class="eyebrow">Editor</p>
+              <h2>Selected Product</h2>
+            </div>
+            <span id="imageState" class="status-pill">No image</span>
+          </header>
+
+          <div class="product-editor-grid">
+            <section class="panel editor-card" aria-label="Product editor">
+              <div class="control-section product-editor">
+                <div id="productThumb" class="product-thumb"></div>
+                <label>
+                  Name
+                  <input id="productNameInput" type="text" autocomplete="off">
+                </label>
+                <div class="two-column">
+                  <label>
+                    Unit
+                    <input id="productUnitInput" type="text" autocomplete="off">
+                  </label>
+                  <label>
+                    Category
+                    <input id="productCategoryInput" type="text" autocomplete="off">
+                  </label>
+                </div>
+                <div class="two-column">
+                  <label>
+                    Selling Price
+                    <input id="sellingPriceInput" type="number" min="0" step="1">
+                  </label>
+                  <label>
+                    MRP
+                    <input id="mrpInput" type="number" min="0" step="1">
+                  </label>
+                </div>
+                <label>
+                  Image URL
+                  <input id="imageUrlInput" type="text" autocomplete="off">
+                </label>
+                <button id="saveProductButton" class="secondary-button" type="button">Save Product</button>
+                <div class="design-handoff">
+                  <label>
+                    Template Name
+                    <select id="productTemplateSelect"></select>
+                  </label>
+                  <button id="sendToBuilderButton" class="primary-button" type="button">Send to Poster Builder</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel editor-card" aria-label="AI image generation">
+              <div class="control-section is-collapsible" data-collapse-key="ai-image">
+                <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="ai-image">
+                  <span class="section-title">AI Image</span>
+                  <span class="section-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="two-column">
+                  <label>
+                    Size
+                    <select id="imageSizeInput">
+                      <option value="1024x1024">Square</option>
+                    </select>
+                  </label>
+                  <label>
+                    Quality
+                    <select id="imageQualityInput">
+                      <option value="low">Low</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="image-actions">
+                  <button id="uploadImageButton" class="secondary-button" type="button">Upload Image</button>
+                  <button id="reuseImageButton" class="secondary-button" type="button">Use Existing</button>
+                  <button id="regenerateImageButton" class="danger-button" type="button">Regenerate</button>
+                </div>
+                <input id="uploadImageInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="aiStatus">
+                <p id="aiStatus" class="muted-line"></p>
+              </div>
+            </section>
           </div>
-          <div class="toolbar-actions">
-            <span id="selectionCount" class="count-pill">0 selected</span>
-            <button id="downloadButton" class="primary-button" type="button">Export PNG</button>
-          </div>
-        </header>
-        <div class="canvas-frame">
-          <canvas id="posterCanvas" width="905" height="1280">
-            Your browser does not support canvas.
-          </canvas>
-        </div>
+        </section>
       </section>
 
-      <aside class="panel right-panel" aria-label="Product editor">
-        <header class="panel-header compact">
-          <div>
-            <p class="eyebrow">Editor</p>
-            <h2>Selected Product</h2>
-          </div>
-          <span id="imageState" class="status-pill">No image</span>
-        </header>
+      <section class="tab-panel poster-builder-layout" data-tab-panel="poster-builder" aria-label="Poster builder">
+        <aside class="panel left-panel" aria-label="Poster controls">
+          <header class="panel-header">
+            <div>
+              <p class="eyebrow">Poster Builder</p>
+              <h2>Poster Controls</h2>
+            </div>
+          </header>
 
-        <section class="control-section product-editor">
-          <div id="productThumb" class="product-thumb"></div>
-          <label>
-            Name
-            <input id="productNameInput" type="text" autocomplete="off">
-          </label>
-          <div class="two-column">
+          <section class="control-section is-collapsible" aria-label="Poster template" data-collapse-key="poster-template">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="poster-template">
+              <span class="section-title">Template</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
             <label>
-              Unit
-              <input id="productUnitInput" type="text" autocomplete="off">
+              Template
+              <select id="builderTemplateSelect"></select>
             </label>
             <label>
-              Category
-              <input id="productCategoryInput" type="text" autocomplete="off">
-            </label>
-          </div>
-          <div class="two-column">
-            <label>
-              Selling Price
-              <input id="sellingPriceInput" type="number" min="0" step="1">
-            </label>
-            <label>
-              MRP
-              <input id="mrpInput" type="number" min="0" step="1">
-            </label>
-          </div>
-          <label>
-            Image URL
-            <input id="imageUrlInput" type="text" autocomplete="off">
-          </label>
-          <button id="saveProductButton" class="secondary-button" type="button">Save Product</button>
-        </section>
-
-        <section class="control-section" aria-label="AI image generation">
-          <div class="section-title">AI Image</div>
-          <div class="two-column">
-            <label>
-              Size
-              <select id="imageSizeInput">
-                <option value="1024x1024">Square</option>
-                <option value="1024x1536">Portrait</option>
-                <option value="1536x1024">Landscape</option>
-                <option value="auto">Auto</option>
+              Price Tag
+              <select id="builderPriceTagInput">
+                <option value="selling-only">Selling price only</option>
+                <option value="selling-mrp-off">Price + MRP + % OFF</option>
+                <option value="selling-off">Price + % OFF</option>
+                <option value="selling-mrp">Price + MRP</option>
+                <option value="selling-mrp-save">Price + MRP + Save</option>
               </select>
             </label>
+          </section>
+
+          <section class="control-section is-collapsible" aria-label="Selected poster content" data-collapse-key="builder-product-content">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="builder-product-content">
+              <span class="section-title">Selected Product Content</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <div class="builder-product-summary">
+              <div id="builderProductThumb" class="builder-product-thumb"></div>
+              <div>
+                <strong id="builderProductLabel">No product selected</strong>
+                <span id="builderProductMeta" class="muted-line">Click a product in the poster or list.</span>
+              </div>
+            </div>
             <label>
-              Quality
-              <select id="imageQualityInput">
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="auto">Auto</option>
+              Product Name
+              <input id="builderProductNameInput" type="text" autocomplete="off">
+            </label>
+            <div class="two-column">
+              <label>
+                Unit
+                <input id="builderProductUnitInput" type="text" autocomplete="off">
+              </label>
+              <label>
+                Category
+                <input id="builderProductCategoryInput" type="text" autocomplete="off">
+              </label>
+            </div>
+            <div class="two-column">
+              <label>
+                Selling Price
+                <input id="builderSellingPriceInput" type="number" min="0" step="1">
+              </label>
+              <label>
+                MRP
+                <input id="builderMrpInput" type="number" min="0" step="1">
+              </label>
+            </div>
+            <label>
+              Image URL
+              <input id="builderImageUrlInput" type="text" autocomplete="off">
+            </label>
+            <div class="button-row">
+              <button id="builderUploadImageButton" class="secondary-button" type="button">Upload Image</button>
+              <button id="builderSaveProductButton" class="secondary-button" type="button">Save Product</button>
+            </div>
+            <input id="builderUploadImageInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp" aria-describedby="builderContentStatus">
+            <p id="builderContentStatus" class="muted-line"></p>
+          </section>
+
+          <section class="control-section is-collapsible" aria-label="Store details" data-collapse-key="store">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="store">
+              <span class="section-title">Store</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <label>
+              Brand
+              <input id="storeNameInput" type="text" autocomplete="off">
+            </label>
+            <label>
+              Local Name
+              <input id="localNameInput" type="text" autocomplete="off">
+            </label>
+            <div class="two-column">
+              <label>
+                Headline
+                <input id="headlineInput" type="text" autocomplete="off">
+              </label>
+              <label>
+                Subheadline
+                <input id="subheadlineInput" type="text" autocomplete="off">
+              </label>
+            </div>
+            <div class="two-column">
+              <label>
+                Phone
+                <input id="phoneInput" type="tel" autocomplete="off">
+              </label>
+              <label>
+                Valid Till
+                <input id="validUntilInput" type="text" autocomplete="off">
+              </label>
+            </div>
+            <label>
+              Delivery Text
+              <input id="deliveryTextInput" type="text" autocomplete="off">
+            </label>
+            <button id="saveBrandButton" class="secondary-button" type="button">Save Store</button>
+          </section>
+
+          <section class="control-section products-section is-collapsible" aria-label="Poster product selection" data-collapse-key="poster-products">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="poster-products">
+              <span class="section-title">Product Selection</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <label>
+              Search
+              <input id="posterProductSearchInput" type="search" autocomplete="off">
+            </label>
+            <div class="list-toolbar">
+              <button id="selectAllButton" type="button">Select All</button>
+              <button id="clearSelectionButton" type="button">Deselect All</button>
+            </div>
+            <div id="posterProductList" class="product-list selection-list"></div>
+          </section>
+        </aside>
+
+        <section class="workspace" aria-label="Poster preview">
+          <header class="workspace-toolbar">
+            <div>
+              <p class="eyebrow">Canvas</p>
+              <h2 id="posterTitle">GrandPlus Grocery Deals</h2>
+            </div>
+            <div class="toolbar-actions">
+              <span id="selectionCount" class="count-pill">0 selected</span>
+              <button id="downloadButton" class="primary-button" type="button">Export PNG</button>
+            </div>
+          </header>
+          <div class="canvas-frame">
+            <canvas id="posterCanvas" width="905" height="1280">
+              Your browser does not support canvas.
+            </canvas>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel templates-layout" data-tab-panel="templates" aria-label="Templates">
+        <aside class="panel templates-panel" aria-label="Template controls">
+          <header class="panel-header">
+            <div>
+              <p class="eyebrow">Templates</p>
+              <h2>Layout Settings</h2>
+            </div>
+            <span id="templateMetric" class="count-pill">Local</span>
+          </header>
+
+          <section class="control-section is-collapsible" aria-label="Template controls" data-collapse-key="layout">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="layout">
+              <span class="section-title">Layout</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <label>
+              Template
+              <select id="templateSelect"></select>
+            </label>
+            <label>
+              Template Name
+              <input id="templateNameInput" type="text" autocomplete="off">
+            </label>
+            <label>
+              Price Tag
+              <select id="priceTagInput">
+                <option value="selling-only">Selling price only</option>
+                <option value="selling-mrp-off">Price + MRP + % OFF</option>
+                <option value="selling-off">Price + % OFF</option>
+                <option value="selling-mrp">Price + MRP</option>
+                <option value="selling-mrp-save">Price + MRP + Save</option>
               </select>
             </label>
-          </div>
-          <div class="button-row">
-            <button id="reuseImageButton" class="secondary-button" type="button">Use Existing</button>
-            <button id="regenerateImageButton" class="danger-button" type="button">Regenerate</button>
-          </div>
-          <p id="aiStatus" class="muted-line"></p>
-        </section>
+            <div class="preset-row" id="presetRow" aria-label="Grid presets">
+              <button type="button" data-preset="1">1</button>
+              <button type="button" data-preset="4">4</button>
+              <button type="button" data-preset="6">6</button>
+              <button type="button" data-preset="10">10</button>
+              <button type="button" data-preset="12">12</button>
+              <button type="button" data-preset="20">20</button>
+              <button type="button" data-preset="35">35</button>
+            </div>
+            <div class="three-column">
+              <label>
+                Columns
+                <input id="columnsInput" type="number" min="1" max="10" step="1">
+              </label>
+              <label>
+                Rows
+                <input id="rowsInput" type="number" min="1" max="10" step="1">
+              </label>
+              <label>
+                Gap
+                <input id="gapInput" type="number" min="0" max="18" step="1">
+              </label>
+            </div>
+            <div class="three-column">
+              <label>
+                Badge
+                <input id="badgeSizeInput" type="number" min="44" max="140" step="1">
+              </label>
+              <label>
+                Header
+                <input id="headerHeightInput" type="number" min="220" max="520" step="1">
+              </label>
+              <label>
+                Scale
+                <input id="exportScaleInput" type="number" min="1" max="4" step="1">
+              </label>
+            </div>
+            <div class="button-row">
+              <button id="newTemplateButton" class="secondary-button" type="button">New Template</button>
+              <button id="saveTemplateButton" class="secondary-button" type="button">Save Template</button>
+            </div>
+          </section>
+        </aside>
 
-        <section class="control-section" aria-label="Export details">
-          <div class="section-title">Session</div>
-          <div class="metric-row">
-            <span>Products</span>
-            <strong id="productMetric">0</strong>
-          </div>
-          <div class="metric-row">
-            <span>Template</span>
-            <strong id="templateMetric">Local</strong>
-          </div>
-          <div class="metric-row">
-            <span>OpenRouter</span>
-            <strong id="openRouterMetric">Off</strong>
+        <section class="template-summary-panel template-preview-workspace" aria-label="Template preview">
+          <header class="workspace-toolbar">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2 id="templatePreviewTitle">Template Preview</h2>
+            </div>
+            <span id="templatePreviewMetric" class="count-pill">0x0</span>
+          </header>
+          <div class="canvas-frame template-preview-frame">
+            <canvas id="templatePreviewCanvas" width="905" height="1280">
+              Template preview
+            </canvas>
           </div>
         </section>
-      </aside>
+      </section>
     </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </body>

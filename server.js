@@ -1,4 +1,5 @@
 import express from "express";
+import multer from "multer";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, publicConfig } from "./lib/config.js";
@@ -9,6 +10,27 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const store = await createStore({ config });
 const app = express();
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_UPLOAD_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const DEMO_IMAGE_SIZE = "1024x1024";
+const DEMO_IMAGE_QUALITY = "low";
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_UPLOAD_BYTES,
+    files: 1
+  },
+  fileFilter: (_request, file, callback) => {
+    if (ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
+      callback(null, true);
+      return;
+    }
+
+    const error = new Error("Upload PNG, JPG, or WebP only.");
+    error.status = 415;
+    callback(error);
+  }
+});
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8mb" }));
@@ -59,6 +81,41 @@ app.put("/api/products/:id", asyncHandler(async (request, response) => {
   response.json({ product });
 }));
 
+app.post("/api/products/:id/upload-image", parseProductImageUpload, asyncHandler(async (request, response) => {
+  const product = await store.getProduct(request.params.id);
+  if (!product) {
+    response.status(404).json({ error: "Product not found." });
+    return;
+  }
+
+  const file = request.file;
+  if (!file) {
+    response.status(400).json({ error: "Choose a product image to upload." });
+    return;
+  }
+
+  const extension = imageExtension(file.mimetype);
+  if (!extension) {
+    response.status(415).json({ error: "Upload PNG, JPG, or WebP only." });
+    return;
+  }
+
+  const savedImage = await store.saveProductImage(product, {
+    buffer: file.buffer,
+    mediaType: file.mimetype,
+    extension
+  });
+  const updatedProduct = await store.updateProduct(product.id, {
+    imageUrl: savedImage.publicUrl
+  });
+
+  response.status(201).json({
+    uploaded: true,
+    imageUrl: savedImage.publicUrl,
+    product: updatedProduct
+  });
+}));
+
 app.post("/api/products/:id/generate-image", asyncHandler(async (request, response) => {
   const product = await store.getProduct(request.params.id);
   if (!product) {
@@ -79,8 +136,8 @@ app.post("/api/products/:id/generate-image", asyncHandler(async (request, respon
   const imageResult = await generateProductImage({
     config,
     product,
-    size: body.size,
-    quality: body.quality,
+    size: DEMO_IMAGE_SIZE,
+    quality: DEMO_IMAGE_QUALITY,
     outputFormat: body.outputFormat,
     background: body.background
   });
@@ -163,4 +220,29 @@ function asyncHandler(handler) {
   return (request, response, next) => {
     Promise.resolve(handler(request, response, next)).catch(next);
   };
+}
+
+function parseProductImageUpload(request, response, next) {
+  imageUpload.single("image")(request, response, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error instanceof multer.MulterError) {
+      const uploadError = new Error(error.code === "LIMIT_FILE_SIZE" ? "Image must be 10MB or smaller." : error.message);
+      uploadError.status = error.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      next(uploadError);
+      return;
+    }
+
+    next(error);
+  });
+}
+
+function imageExtension(mimeType) {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  return "";
 }

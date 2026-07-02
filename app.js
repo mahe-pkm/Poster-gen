@@ -32,6 +32,18 @@ const PRESETS = {
   35: { columns: 7, rows: 5 }
 };
 
+const TABS = {
+  products: "/products",
+  "poster-builder": "/poster-builder",
+  templates: "/templates"
+};
+
+const SECTION_STORAGE_KEY = "storePoster.collapsedSections";
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const DEMO_IMAGE_SIZE = "1024x1024";
+const DEMO_IMAGE_QUALITY = "low";
+
 const state = {
   health: null,
   brand: null,
@@ -40,7 +52,9 @@ const state = {
   template: null,
   selectedIds: [],
   activeProductId: null,
+  activeTab: "products",
   search: "",
+  posterSearch: "",
   hitAreas: []
 };
 
@@ -58,7 +72,11 @@ const el = {
   validUntil: $("#validUntilInput"),
   deliveryText: $("#deliveryTextInput"),
   saveBrand: $("#saveBrandButton"),
+  productTemplateSelect: $("#productTemplateSelect"),
+  builderTemplateSelect: $("#builderTemplateSelect"),
+  builderPriceTag: $("#builderPriceTagInput"),
   templateSelect: $("#templateSelect"),
+  templateName: $("#templateNameInput"),
   priceTag: $("#priceTagInput"),
   presetRow: $("#presetRow"),
   columns: $("#columnsInput"),
@@ -67,13 +85,19 @@ const el = {
   badgeSize: $("#badgeSizeInput"),
   headerHeight: $("#headerHeightInput"),
   exportScale: $("#exportScaleInput"),
+  newTemplate: $("#newTemplateButton"),
   saveTemplate: $("#saveTemplateButton"),
   productSearch: $("#productSearchInput"),
+  posterProductSearch: $("#posterProductSearchInput"),
   addProduct: $("#addProductButton"),
-  selectVisible: $("#selectVisibleButton"),
+  selectAll: $("#selectAllButton"),
   clearSelection: $("#clearSelectionButton"),
   productList: $("#productList"),
+  posterProductList: $("#posterProductList"),
   posterCanvas: $("#posterCanvas"),
+  templatePreviewCanvas: $("#templatePreviewCanvas"),
+  templatePreviewTitle: $("#templatePreviewTitle"),
+  templatePreviewMetric: $("#templatePreviewMetric"),
   posterTitle: $("#posterTitle"),
   download: $("#downloadButton"),
   selectionCount: $("#selectionCount"),
@@ -86,14 +110,33 @@ const el = {
   mrp: $("#mrpInput"),
   imageUrl: $("#imageUrlInput"),
   saveProduct: $("#saveProductButton"),
+  sendToBuilder: $("#sendToBuilderButton"),
+  builderProductThumb: $("#builderProductThumb"),
+  builderProductLabel: $("#builderProductLabel"),
+  builderProductMeta: $("#builderProductMeta"),
+  builderProductName: $("#builderProductNameInput"),
+  builderProductUnit: $("#builderProductUnitInput"),
+  builderProductCategory: $("#builderProductCategoryInput"),
+  builderSellingPrice: $("#builderSellingPriceInput"),
+  builderMrp: $("#builderMrpInput"),
+  builderImageUrl: $("#builderImageUrlInput"),
+  builderUploadImage: $("#builderUploadImageInput"),
+  builderUploadImageButton: $("#builderUploadImageButton"),
+  builderSaveProduct: $("#builderSaveProductButton"),
+  builderContentStatus: $("#builderContentStatus"),
   imageSize: $("#imageSizeInput"),
   imageQuality: $("#imageQualityInput"),
+  uploadImage: $("#uploadImageInput"),
+  uploadImageButton: $("#uploadImageButton"),
   reuseImage: $("#reuseImageButton"),
   regenerateImage: $("#regenerateImageButton"),
   aiStatus: $("#aiStatus"),
   productMetric: $("#productMetric"),
   templateMetric: $("#templateMetric"),
   openRouterMetric: $("#openRouterMetric"),
+  tabLinks: [...document.querySelectorAll("[data-tab-link]")],
+  tabPanels: [...document.querySelectorAll("[data-tab-panel]")],
+  sectionToggles: [...document.querySelectorAll("[data-section-toggle]")],
   toast: $("#toast")
 };
 
@@ -113,6 +156,7 @@ async function boot() {
     console.error(error);
   } finally {
     disableUi(false);
+    syncDemoImageControls();
     syncProductInputs();
   }
 }
@@ -139,6 +183,9 @@ async function loadInitialData() {
 }
 
 function wireEvents() {
+  wireTabEvents();
+  wireCollapsibleSections();
+
   [
     ["storeName", "storeName"],
     ["localName", "localName"],
@@ -150,18 +197,33 @@ function wireEvents() {
   ].forEach(([elementKey, brandKey]) => {
     el[elementKey].addEventListener("input", () => {
       state.brand[brandKey] = el[elementKey].value;
-      drawPoster();
+      drawCanvases();
       renderHeaderMetrics();
     });
   });
 
   el.saveBrand.addEventListener("click", saveBrand);
 
+  el.productTemplateSelect.addEventListener("change", () => {
+    activateTemplate(el.productTemplateSelect.value);
+  });
+
   el.templateSelect.addEventListener("change", () => {
-    state.template = state.templates.find((template) => template.id === el.templateSelect.value) || state.templates[0];
-    trimSelectionToTemplate();
-    syncTemplateInputs();
-    renderAll();
+    activateTemplate(el.templateSelect.value);
+  });
+
+  el.builderTemplateSelect.addEventListener("change", () => {
+    activateTemplate(el.builderTemplateSelect.value);
+  });
+
+  el.builderPriceTag.addEventListener("change", () => {
+    updateTemplateConfig("priceTagMode", el.builderPriceTag.value);
+  });
+
+  el.templateName.addEventListener("input", () => {
+    if (!state.template) return;
+    state.template.name = el.templateName.value.trimStart();
+    syncTemplateSelector();
   });
 
   el.priceTag.addEventListener("change", () => {
@@ -188,14 +250,20 @@ function wireEvents() {
   });
 
   el.saveTemplate.addEventListener("click", saveTemplate);
+  el.newTemplate.addEventListener("click", createTemplate);
 
   el.productSearch.addEventListener("input", () => {
     state.search = el.productSearch.value.trim().toLowerCase();
     renderProductList();
   });
 
+  el.posterProductSearch.addEventListener("input", () => {
+    state.posterSearch = el.posterProductSearch.value.trim().toLowerCase();
+    renderProductList();
+  });
+
   el.addProduct.addEventListener("click", addProduct);
-  el.selectVisible.addEventListener("click", selectVisibleProducts);
+  el.selectAll.addEventListener("click", selectAllProducts);
   el.clearSelection.addEventListener("click", () => {
     state.selectedIds = [];
     renderAll();
@@ -204,14 +272,32 @@ function wireEvents() {
   ["productName", "productUnit", "productCategory", "sellingPrice", "mrp", "imageUrl"].forEach((key) => {
     el[key].addEventListener("input", () => {
       updateActiveProductFromInputs();
+      syncBuilderProductInputs();
       renderProductList();
       renderImageState();
       preloadVisibleImages();
-      drawPoster();
+      drawCanvases();
     });
   });
 
   el.saveProduct.addEventListener("click", saveActiveProduct);
+  el.sendToBuilder.addEventListener("click", sendActiveProductToBuilder);
+  ["builderProductName", "builderProductUnit", "builderProductCategory", "builderSellingPrice", "builderMrp", "builderImageUrl"].forEach((key) => {
+    el[key].addEventListener("input", () => {
+      updateActiveProductFromBuilderInputs();
+      updateBuilderProductSummary(getActiveProduct(), { refreshThumb: key === "builderImageUrl" });
+      syncProductInputs();
+      renderProductList();
+      renderImageState();
+      preloadVisibleImages();
+      drawCanvases();
+    });
+  });
+  el.builderSaveProduct.addEventListener("click", saveActiveProduct);
+  el.builderUploadImageButton.addEventListener("click", () => el.builderUploadImage.click());
+  el.builderUploadImage.addEventListener("change", () => uploadProductImage("builder"));
+  el.uploadImageButton.addEventListener("click", () => el.uploadImage.click());
+  el.uploadImage.addEventListener("change", () => uploadProductImage("product"));
   el.reuseImage.addEventListener("click", () => generateImage(false));
   el.regenerateImage.addEventListener("click", () => generateImage(true));
   el.download.addEventListener("click", exportPoster);
@@ -228,15 +314,107 @@ function wireEvents() {
   });
 }
 
+function wireTabEvents() {
+  setActiveTab(tabFromPath(window.location.pathname), { updateHistory: false });
+
+  el.tabLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      setActiveTab(link.dataset.tabLink, { updateHistory: true });
+    });
+  });
+
+  window.addEventListener("popstate", () => {
+    setActiveTab(tabFromPath(window.location.pathname), { updateHistory: false });
+  });
+}
+
+function setActiveTab(tab, { updateHistory } = { updateHistory: false }) {
+  const nextTab = TABS[tab] ? tab : "products";
+  state.activeTab = nextTab;
+
+  el.tabLinks.forEach((link) => {
+    const active = link.dataset.tabLink === nextTab;
+    link.classList.toggle("is-active", active);
+    if (active) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+
+  el.tabPanels.forEach((panel) => {
+    const active = panel.dataset.tabPanel === nextTab;
+    panel.classList.toggle("is-active", active);
+    panel.hidden = !active;
+  });
+
+  if (updateHistory && window.location.pathname !== TABS[nextTab]) {
+    window.history.pushState({ tab: nextTab }, "", TABS[nextTab]);
+  }
+
+  if (nextTab === "poster-builder" && state.brand) {
+    drawPoster();
+  }
+}
+
+function tabFromPath(pathname) {
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  if (normalized === "/poster-builder") return "poster-builder";
+  if (normalized === "/templates") return "templates";
+  return "products";
+}
+
+function wireCollapsibleSections() {
+  const collapsedSections = readCollapsedSections();
+
+  el.sectionToggles.forEach((toggle) => {
+    const key = toggle.dataset.sectionToggle;
+    const section = toggle.closest(".control-section");
+    if (!key || !section) return;
+
+    setSectionCollapsed(section, toggle, collapsedSections.includes(key));
+    toggle.addEventListener("click", () => {
+      const nextCollapsed = !section.classList.contains("is-collapsed");
+      setSectionCollapsed(section, toggle, nextCollapsed);
+      writeCollapsedSections();
+    });
+  });
+}
+
+function setSectionCollapsed(section, toggle, collapsed) {
+  section.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+}
+
+function readCollapsedSections() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SECTION_STORAGE_KEY) || "[]");
+    return Array.isArray(value) ? value.filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCollapsedSections() {
+  const collapsed = el.sectionToggles
+    .filter((toggle) => toggle.closest(".control-section")?.classList.contains("is-collapsed"))
+    .map((toggle) => toggle.dataset.sectionToggle)
+    .filter(Boolean);
+  window.localStorage.setItem(SECTION_STORAGE_KEY, JSON.stringify(collapsed));
+}
+
 function renderAll() {
   syncBrandInputs();
   syncTemplateSelector();
   syncTemplateInputs();
   syncProductInputs();
+  syncBuilderProductInputs();
   renderProductList();
   renderImageState();
   renderHeaderMetrics();
   drawPoster();
+  drawTemplatePreview();
 }
 
 function syncBrandInputs() {
@@ -251,22 +429,30 @@ function syncBrandInputs() {
 }
 
 function syncTemplateSelector() {
-  el.templateSelect.innerHTML = "";
+  syncTemplateSelectControl(el.productTemplateSelect);
+  syncTemplateSelectControl(el.templateSelect);
+  syncTemplateSelectControl(el.builderTemplateSelect);
+}
+
+function syncTemplateSelectControl(select) {
+  select.innerHTML = "";
   state.templates.forEach((template) => {
     const option = document.createElement("option");
     option.value = template.id;
     option.textContent = template.name;
     option.selected = template.id === state.template?.id;
-    el.templateSelect.appendChild(option);
+    select.appendChild(option);
   });
 }
 
 function syncTemplateInputs() {
   const config = getConfig();
+  el.templateName.value = state.template?.name || "";
   el.columns.value = config.columns;
   el.rows.value = config.rows;
   el.gap.value = config.gridGap;
   el.badgeSize.value = config.badgeSize;
+  el.builderPriceTag.value = config.priceTagMode;
   el.priceTag.value = config.priceTagMode;
   el.headerHeight.value = config.headerHeight;
   el.exportScale.value = config.exportScale;
@@ -280,7 +466,8 @@ function syncTemplateInputs() {
 function syncProductInputs() {
   const product = getActiveProduct();
   const hasProduct = Boolean(product);
-  ["productName", "productUnit", "productCategory", "sellingPrice", "mrp", "imageUrl", "saveProduct", "reuseImage", "regenerateImage"].forEach((key) => {
+  syncDemoImageControls();
+  ["productName", "productUnit", "productCategory", "sellingPrice", "mrp", "imageUrl", "saveProduct", "sendToBuilder", "uploadImage", "uploadImageButton", "reuseImage", "regenerateImage"].forEach((key) => {
     el[key].disabled = !hasProduct;
   });
 
@@ -302,54 +489,127 @@ function syncProductInputs() {
   el.imageUrl.value = product.imageUrl || "";
 }
 
+function syncBuilderProductInputs() {
+  const product = getActiveProduct();
+  const hasProduct = Boolean(product);
+  [
+    "builderProductName",
+    "builderProductUnit",
+    "builderProductCategory",
+    "builderSellingPrice",
+    "builderMrp",
+    "builderImageUrl",
+    "builderUploadImage",
+    "builderUploadImageButton",
+    "builderSaveProduct"
+  ].forEach((key) => {
+    el[key].disabled = !hasProduct;
+  });
+
+  el.builderProductThumb.innerHTML = "";
+  if (!product) {
+    el.builderProductThumb.appendChild(textNode("No product"));
+    el.builderProductLabel.textContent = "No product selected";
+    el.builderProductMeta.textContent = "Click a product in the poster or list.";
+    el.builderProductName.value = "";
+    el.builderProductUnit.value = "";
+    el.builderProductCategory.value = "";
+    el.builderSellingPrice.value = "";
+    el.builderMrp.value = "";
+    el.builderImageUrl.value = "";
+    return;
+  }
+
+  updateBuilderProductSummary(product, { refreshThumb: true });
+  el.builderProductName.value = product.name || "";
+  el.builderProductUnit.value = product.unit || "";
+  el.builderProductCategory.value = product.category || "";
+  el.builderSellingPrice.value = safePrice(product.sellingPrice);
+  el.builderMrp.value = product.mrp ?? "";
+  el.builderImageUrl.value = product.imageUrl || "";
+}
+
+function updateBuilderProductSummary(product, { refreshThumb } = { refreshThumb: false }) {
+  if (!product) return;
+  if (refreshThumb) {
+    el.builderProductThumb.innerHTML = "";
+    el.builderProductThumb.appendChild(makeThumbContent(product));
+  }
+  el.builderProductLabel.textContent = product.name || "Untitled Product";
+  el.builderProductMeta.textContent = [product.unit, product.category].filter(Boolean).join(" / ") || "Poster item";
+}
+
+function syncDemoImageControls() {
+  el.imageSize.value = DEMO_IMAGE_SIZE;
+  el.imageQuality.value = DEMO_IMAGE_QUALITY;
+  el.imageSize.disabled = true;
+  el.imageQuality.disabled = true;
+}
+
 function renderProductList() {
-  const products = filteredProducts();
+  const products = filteredProducts(state.search);
+  const posterProducts = filteredProducts(state.posterSearch);
   el.productList.innerHTML = "";
+  el.posterProductList.innerHTML = "";
 
   products.forEach((product) => {
-    const row = document.createElement("div");
-    row.className = [
-      "product-row",
-      product.id === state.activeProductId ? "is-active" : "",
-      state.selectedIds.includes(product.id) ? "is-selected" : ""
-    ]
-      .filter(Boolean)
-      .join(" ");
-    row.tabIndex = 0;
+    el.productList.appendChild(makeProductRow(product, { selectable: false }));
+  });
 
-    const checkbox = document.createElement("input");
+  posterProducts.forEach((product) => {
+    el.posterProductList.appendChild(makeProductRow(product, { selectable: true }));
+  });
+}
+
+function makeProductRow(product, { selectable }) {
+  const row = document.createElement("div");
+  row.className = [
+    "product-row",
+    selectable ? "" : "is-manager",
+    product.id === state.activeProductId ? "is-active" : "",
+    state.selectedIds.includes(product.id) ? "is-selected" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+  row.tabIndex = 0;
+
+  const thumb = document.createElement("div");
+  thumb.className = "row-thumb";
+  thumb.appendChild(makeThumbContent(product));
+
+  const details = document.createElement("div");
+  details.innerHTML = `
+    <span class="row-name">${escapeHtml(product.name)}</span>
+    <span class="row-meta">${escapeHtml([product.unit, product.category].filter(Boolean).join(" / "))}</span>
+  `;
+
+  const price = document.createElement("div");
+  price.className = "row-price";
+  price.textContent = formatRupee(product.sellingPrice);
+
+  let checkbox = null;
+  if (selectable) {
+    checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = state.selectedIds.includes(product.id);
     checkbox.addEventListener("change", () => toggleProductSelection(product.id, checkbox.checked));
-
-    const thumb = document.createElement("div");
-    thumb.className = "row-thumb";
-    thumb.appendChild(makeThumbContent(product));
-
-    const details = document.createElement("div");
-    details.innerHTML = `
-      <span class="row-name">${escapeHtml(product.name)}</span>
-      <span class="row-meta">${escapeHtml([product.unit, product.category].filter(Boolean).join(" / "))}</span>
-    `;
-
-    const price = document.createElement("div");
-    price.className = "row-price";
-    price.textContent = formatRupee(product.sellingPrice);
-
     row.append(checkbox, thumb, details, price);
-    row.addEventListener("click", (event) => {
-      if (event.target === checkbox) return;
-      selectProduct(product.id);
-    });
-    row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        selectProduct(product.id);
-      }
-    });
+  } else {
+    row.append(thumb, details, price);
+  }
 
-    el.productList.appendChild(row);
+  row.addEventListener("click", (event) => {
+    if (event.target === checkbox) return;
+    selectProduct(product.id);
   });
+  row.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      selectProduct(product.id);
+    }
+  });
+
+  return row;
 }
 
 function renderImageState() {
@@ -376,11 +636,21 @@ function renderImageState() {
 function renderHeaderMetrics() {
   const config = getConfig();
   const title = `${state.brand?.storeName || "Store"} ${state.brand?.headline || "Offers"} ${state.brand?.subheadline || ""}`.trim();
-  el.posterTitle.textContent = title;
-  el.selectionCount.textContent = `${state.selectedIds.length} selected`;
-  el.productMetric.textContent = String(state.products.length);
-  el.templateMetric.textContent = `${config.columns}x${config.rows}`;
-  el.openRouterMetric.textContent = state.health?.openRouterConfigured ? "On" : "Off";
+  if (el.posterTitle) {
+    el.posterTitle.textContent = title;
+  }
+  if (el.selectionCount) {
+    el.selectionCount.textContent = `${state.selectedIds.length} selected`;
+  }
+  if (el.productMetric) {
+    el.productMetric.textContent = String(state.products.length);
+  }
+  if (el.templateMetric) {
+    el.templateMetric.textContent = `${config.columns}x${config.rows}`;
+  }
+  if (el.openRouterMetric) {
+    el.openRouterMetric.textContent = state.health?.openRouterConfigured ? "On" : "Off";
+  }
 
   if (state.health) {
     const mode = state.health.database === "supabase" ? "Supabase" : "Local";
@@ -413,7 +683,7 @@ async function saveBrand() {
     const response = await apiPut("/api/brand", state.brand);
     state.brand = response.brand;
     syncBrandInputs();
-    drawPoster();
+    drawCanvases();
     toast("Store saved");
   } catch (error) {
     toast(error.message || "Store save failed");
@@ -424,17 +694,42 @@ async function saveBrand() {
 
 async function saveTemplate() {
   if (!state.template) return;
+  state.template.name = cleanTemplateName(el.templateName.value, state.template.name || "Custom Template");
   disableControls([el.saveTemplate], true);
   try {
     const response = await apiPut(`/api/templates/${encodeURIComponent(state.template.id)}`, state.template);
     replaceTemplate(response.template);
     state.template = response.template;
     syncTemplateSelector();
+    syncTemplateInputs();
     toast("Template saved");
   } catch (error) {
     toast(error.message || "Template save failed");
   } finally {
     disableControls([el.saveTemplate], false);
+  }
+}
+
+async function createTemplate() {
+  const config = getConfig();
+  const name = uniqueTemplateName(makeGeneratedTemplateName(config));
+  disableControls([el.newTemplate, el.saveTemplate], true);
+
+  try {
+    const response = await apiPost("/api/templates", {
+      name,
+      type: state.template?.type || "grocery-grid",
+      config: structuredClone(config)
+    });
+    replaceTemplate(response.template);
+    state.template = response.template;
+    trimSelectionToTemplate();
+    renderAll();
+    toast("New template created");
+  } catch (error) {
+    toast(error.message || "Template create failed");
+  } finally {
+    disableControls([el.newTemplate, el.saveTemplate], false);
   }
 }
 
@@ -461,20 +756,73 @@ async function saveActiveProduct() {
   const product = getActiveProduct();
   if (!product) return;
 
-  disableControls([el.saveProduct], true);
+  disableControls([el.saveProduct, el.builderSaveProduct], true);
   try {
     const response = await apiPut(`/api/products/${encodeURIComponent(product.id)}`, product);
     replaceProduct(response.product);
     syncProductInputs();
+    syncBuilderProductInputs();
     renderProductList();
     renderImageState();
     preloadVisibleImages();
-    drawPoster();
+    drawCanvases();
     toast("Product saved");
   } catch (error) {
     toast(error.message || "Product save failed");
   } finally {
-    disableControls([el.saveProduct], false);
+    const hasProduct = Boolean(getActiveProduct());
+    disableControls([el.saveProduct, el.builderSaveProduct], !hasProduct);
+  }
+}
+
+async function uploadProductImage(source = "product") {
+  const product = getActiveProduct();
+  const fileInput = source === "builder" ? el.builderUploadImage : el.uploadImage;
+  const statusTarget = source === "builder" ? el.builderContentStatus : el.aiStatus;
+  const uploadButton = source === "builder" ? el.builderUploadImageButton : el.uploadImageButton;
+  const saveButton = source === "builder" ? el.builderSaveProduct : el.saveProduct;
+  const file = fileInput.files?.[0];
+  if (!product || !file) return;
+
+  const uploadError = validateProductImageFile(file);
+  if (uploadError) {
+    statusTarget.textContent = uploadError;
+    toast(uploadError);
+    fileInput.value = "";
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", file);
+
+  disableControls([fileInput, uploadButton, saveButton, el.uploadImage, el.uploadImageButton, el.reuseImage, el.regenerateImage], true);
+  statusTarget.textContent = "Uploading image...";
+
+  try {
+    const response = await api(`/api/products/${encodeURIComponent(product.id)}/upload-image`, {
+      method: "POST",
+      body: formData
+    });
+
+    replaceProduct(response.product);
+    state.activeProductId = response.product.id;
+    imageCache.delete(response.product.id);
+    preloadVisibleImages();
+    syncProductInputs();
+    syncBuilderProductInputs();
+    renderProductList();
+    renderImageState();
+    drawCanvases();
+    statusTarget.textContent = "Uploaded image saved.";
+    toast("Image uploaded");
+  } catch (error) {
+    statusTarget.textContent = error.message || "Image upload failed.";
+    toast(error.message || "Image upload failed");
+  } finally {
+    fileInput.value = "";
+    const hasProduct = Boolean(getActiveProduct());
+    disableControls([el.uploadImage, el.uploadImageButton, el.reuseImage, el.regenerateImage], !hasProduct);
+    disableControls([el.builderUploadImage, el.builderUploadImageButton, el.builderSaveProduct], !hasProduct);
   }
 }
 
@@ -482,14 +830,14 @@ async function generateImage(regenerate) {
   const product = getActiveProduct();
   if (!product) return;
 
-  disableControls([el.reuseImage, el.regenerateImage], true);
+  disableControls([el.uploadImage, el.uploadImageButton, el.reuseImage, el.regenerateImage], true);
   el.aiStatus.textContent = regenerate ? "Generating replacement image..." : "Checking reusable image...";
 
   try {
     const response = await apiPost(`/api/products/${encodeURIComponent(product.id)}/generate-image`, {
       regenerate,
-      size: el.imageSize.value,
-      quality: el.imageQuality.value,
+      size: DEMO_IMAGE_SIZE,
+      quality: DEMO_IMAGE_QUALITY,
       outputFormat: "png",
       background: "transparent"
     });
@@ -499,16 +847,19 @@ async function generateImage(regenerate) {
     imageCache.delete(response.product.id);
     preloadVisibleImages();
     syncProductInputs();
+    syncBuilderProductInputs();
     renderProductList();
     renderImageState();
-    drawPoster();
+    drawCanvases();
     el.aiStatus.textContent = response.reused ? "Existing image reused." : "New image saved.";
     toast(response.reused ? "Image reused" : "Image generated");
   } catch (error) {
     el.aiStatus.textContent = error.message || "Image generation failed.";
     toast(error.message || "Image generation failed");
   } finally {
-    disableControls([el.reuseImage, el.regenerateImage], false);
+    const hasProduct = Boolean(getActiveProduct());
+    disableControls([el.uploadImage, el.uploadImageButton, el.reuseImage, el.regenerateImage], !hasProduct);
+    syncDemoImageControls();
   }
 }
 
@@ -550,6 +901,18 @@ function updateActiveProductFromInputs() {
   product.imageUrl = el.imageUrl.value.trim();
 }
 
+function updateActiveProductFromBuilderInputs() {
+  const product = getActiveProduct();
+  if (!product) return;
+
+  product.name = el.builderProductName.value;
+  product.unit = el.builderProductUnit.value;
+  product.category = el.builderProductCategory.value;
+  product.sellingPrice = Number(el.builderSellingPrice.value || 0);
+  product.mrp = el.builderMrp.value === "" ? null : Number(el.builderMrp.value || 0);
+  product.imageUrl = el.builderImageUrl.value.trim();
+}
+
 function applyPreset(count) {
   const preset = PRESETS[count] || PRESETS[35];
   const config = getConfig();
@@ -574,7 +937,14 @@ function updateTemplateConfig(key, value) {
   preloadVisibleImages();
   renderProductList();
   renderHeaderMetrics();
-  drawPoster();
+  drawCanvases();
+}
+
+function activateTemplate(templateId) {
+  state.template = state.templates.find((template) => template.id === templateId) || state.templates[0] || makeFallbackTemplate();
+  trimSelectionToTemplate();
+  preloadVisibleImages();
+  renderAll();
 }
 
 function trimSelectionToTemplate() {
@@ -586,13 +956,44 @@ function trimSelectionToTemplate() {
   }
 }
 
-function selectVisibleProducts() {
+function selectAllProducts() {
   const config = getConfig();
   const maxProducts = Number(config.maxProducts || config.columns * config.rows);
-  state.selectedIds = filteredProducts().slice(0, maxProducts).map((product) => product.id);
+  state.selectedIds = state.products.slice(0, maxProducts).map((product) => product.id);
   state.activeProductId = state.selectedIds[0] || state.activeProductId;
   preloadVisibleImages();
   renderAll();
+  if (state.products.length > maxProducts) {
+    toast(`Selected ${maxProducts} products for this layout`);
+  }
+}
+
+function sendActiveProductToBuilder() {
+  const product = getActiveProduct();
+  if (!product) {
+    toast("Select a product first");
+    return;
+  }
+
+  if (el.productTemplateSelect.value) {
+    state.template = state.templates.find((template) => template.id === el.productTemplateSelect.value) || state.template;
+  }
+
+  const config = getConfig();
+  const maxProducts = Number(config.maxProducts || config.columns * config.rows);
+  if (!state.selectedIds.includes(product.id)) {
+    state.selectedIds = state.selectedIds.length >= maxProducts
+      ? [...state.selectedIds.slice(0, maxProducts - 1), product.id]
+      : [...state.selectedIds, product.id];
+  }
+
+  state.activeProductId = product.id;
+  syncTemplateSelector();
+  trimSelectionToTemplate();
+  preloadVisibleImages();
+  renderAll();
+  setActiveTab("poster-builder", { updateHistory: true });
+  toast(`${product.name || "Product"} sent to Poster Builder`);
 }
 
 function toggleProductSelection(id, checked) {
@@ -617,9 +1018,10 @@ function toggleProductSelection(id, checked) {
 function selectProduct(id) {
   state.activeProductId = id;
   syncProductInputs();
+  syncBuilderProductInputs();
   renderProductList();
   renderImageState();
-  drawPoster();
+  drawCanvases();
 }
 
 function replaceProduct(nextProduct) {
@@ -640,6 +1042,30 @@ function replaceTemplate(nextTemplate) {
   }
 }
 
+function makeGeneratedTemplateName(config) {
+  const brand = (state.brand?.storeName || "Store").trim();
+  return `${brand} ${config.columns}x${config.rows} Template`;
+}
+
+function uniqueTemplateName(name) {
+  const baseName = cleanTemplateName(name, "Custom Template");
+  const existingNames = new Set(state.templates.map((template) => (template.name || "").toLowerCase()));
+  if (!existingNames.has(baseName.toLowerCase())) {
+    return baseName;
+  }
+
+  let suffix = 2;
+  while (existingNames.has(`${baseName} ${suffix}`.toLowerCase())) {
+    suffix += 1;
+  }
+  return `${baseName} ${suffix}`;
+}
+
+function cleanTemplateName(value, fallback) {
+  const name = String(value || "").trim().replace(/\s+/g, " ");
+  return name || fallback;
+}
+
 function preloadVisibleImages() {
   selectedProducts().forEach((product) => {
     if (!product.imageUrl || imageCache.has(product.id) || imageLoading.has(product.id)) return;
@@ -650,14 +1076,27 @@ function preloadVisibleImages() {
     img.onload = () => {
       imageCache.set(product.id, img);
       imageLoading.delete(product.id);
-      drawPoster();
+      drawCanvases();
     };
     img.onerror = () => {
       imageLoading.delete(product.id);
-      drawPoster();
+      drawCanvases();
     };
     img.src = product.imageUrl;
   });
+}
+
+function drawCanvases() {
+  drawPoster();
+  drawTemplatePreview();
+}
+
+function drawTemplatePreview() {
+  if (!el.templatePreviewCanvas) return;
+  drawPoster(el.templatePreviewCanvas);
+  const config = getConfig();
+  el.templatePreviewTitle.textContent = state.template?.name || "Template Preview";
+  el.templatePreviewMetric.textContent = `${config.columns}x${config.rows}`;
 }
 
 function drawPoster(targetCanvas = el.posterCanvas, scale = 1) {
@@ -1086,11 +1525,11 @@ function selectedProducts() {
   return state.selectedIds.map((id) => byId.get(id)).filter(Boolean);
 }
 
-function filteredProducts() {
-  if (!state.search) return state.products;
+function filteredProducts(search = state.search) {
+  if (!search) return state.products;
   return state.products.filter((product) => {
     const value = `${product.name} ${product.unit} ${product.category}`.toLowerCase();
-    return value.includes(state.search);
+    return value.includes(search);
   });
 }
 
@@ -1120,10 +1559,11 @@ async function apiPut(url, body) {
 }
 
 async function api(url, options = {}) {
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(options.headers || {})
     }
   });
@@ -1177,6 +1617,16 @@ function discountPercent(product) {
     return 0;
   }
   return Math.max(1, Math.min(99, Math.round(((mrp - sellingPrice) / mrp) * 100)));
+}
+
+function validateProductImageFile(file) {
+  if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+    return "Upload PNG, JPG, or WebP only.";
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return "Image must be 10MB or smaller.";
+  }
+  return "";
 }
 
 function sanitizePriceTagMode(value) {
