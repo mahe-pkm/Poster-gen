@@ -334,7 +334,7 @@ function renderProductList() {
 
     const price = document.createElement("div");
     price.className = "row-price";
-    price.textContent = safePrice(product.sellingPrice);
+    price.textContent = formatRupee(product.sellingPrice);
 
     row.append(checkbox, thumb, details, price);
     row.addEventListener("click", (event) => {
@@ -989,7 +989,7 @@ function drawProductNameBar(ctx, product, x, y, w, h, config) {
 }
 
 function drawPriceBadge(ctx, product, x, y, w, h, color, mode) {
-  const price = safePrice(product.sellingPrice);
+  const price = formatRupee(product.sellingPrice);
   const mrp = Number(product.mrp);
   const discount = discountPercent(product);
   const saveAmount = Number.isFinite(mrp) ? Math.round(mrp - Number(product.sellingPrice || 0)) : 0;
@@ -997,9 +997,9 @@ function drawPriceBadge(ctx, product, x, y, w, h, color, mode) {
   const showOff = ["selling-mrp-off", "selling-off"].includes(mode) && discount > 0;
   const showSave = mode === "selling-mrp-save" && saveAmount > 0;
   const detailLines = [
-    showMrp ? { text: `MRP ${safePrice(mrp)}`, strike: true, color: "rgb(255 255 255 / 0.86)" } : null,
+    showMrp ? { text: `MRP ${formatRupee(mrp)}`, strike: true, color: "rgb(255 255 255 / 0.86)" } : null,
     showOff ? { text: `${discount}% OFF`, color: "#fff36d" } : null,
-    showSave ? { text: `SAVE ${saveAmount}`, color: "#fff36d" } : null
+    showSave ? { text: `SAVE ${formatRupee(saveAmount)}`, color: "#fff36d" } : null
   ].filter(Boolean);
   const hasDetails = detailLines.length > 0;
 
@@ -1164,6 +1164,10 @@ function safePrice(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "0";
   return String(Math.max(0, Math.round(number)));
+}
+
+function formatRupee(value) {
+  return `₹${safePrice(value)}`;
 }
 
 function discountPercent(product) {
