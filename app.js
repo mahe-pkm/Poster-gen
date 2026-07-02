@@ -625,8 +625,9 @@ function renderImageState() {
 
   el.productThumb.appendChild(makeThumbContent(product));
   if (product.imageUrl) {
-    el.imageState.textContent = "Reusable";
-    el.imageState.className = "status-pill is-ready";
+    const reusable = Boolean(state.health?.reusableImages);
+    el.imageState.textContent = reusable ? "Reusable" : "Demo only";
+    el.imageState.className = reusable ? "status-pill is-ready" : "status-pill is-warn";
   } else {
     el.imageState.textContent = "Fallback";
     el.imageState.className = "status-pill is-warn";
