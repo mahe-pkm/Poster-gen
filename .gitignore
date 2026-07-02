@@ -1,0 +1,9 @@
+node_modules/
+.vercel/
+.env
+.env.local
+data/store.local.json
+public/generated-products/*
+!public/generated-products/.gitkeep
+product_poster_generator_codex_pack/
+product_poster_generator_codex_pack.zip

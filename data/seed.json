@@ -1,0 +1,406 @@
+{
+  "brand": {
+    "storeName": "GrandPlus",
+    "localName": "Grand Plus",
+    "headline": "GROCERY",
+    "subheadline": "DEALS",
+    "phone": "9731148888",
+    "validUntil": "25-10-2025",
+    "deliveryText": "FREE DELIVERY",
+    "priceMode": "selling-with-only",
+    "showDiscount": false
+  },
+  "products": [
+    {
+      "id": "p001",
+      "name": "Papaya",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/papaya.png",
+      "mrp": 45,
+      "sellingPrice": 33
+    },
+    {
+      "id": "p002",
+      "name": "Bottlegourd",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/bottlegourd.png",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p003",
+      "name": "Brinjal Long",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/brinjal-long.png",
+      "mrp": 80,
+      "sellingPrice": 59
+    },
+    {
+      "id": "p004",
+      "name": "Akash Chilli",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/chilli.png",
+      "mrp": 110,
+      "sellingPrice": 88
+    },
+    {
+      "id": "p005",
+      "name": "Big Chilli",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/big-chilli.png",
+      "mrp": 99,
+      "sellingPrice": 79
+    },
+    {
+      "id": "p006",
+      "name": "Ridgegourd",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/ridgegourd.png",
+      "mrp": 75,
+      "sellingPrice": 58
+    },
+    {
+      "id": "p007",
+      "name": "Big Bitter",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/bittergourd.png",
+      "mrp": 55,
+      "sellingPrice": 39
+    },
+    {
+      "id": "p008",
+      "name": "Long Beans",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/long-beans.png",
+      "mrp": 85,
+      "sellingPrice": 65
+    },
+    {
+      "id": "p009",
+      "name": "Kovakka Big",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/kovakka.png",
+      "mrp": 60,
+      "sellingPrice": 44
+    },
+    {
+      "id": "p010",
+      "name": "Snakegourd",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/snakegourd.png",
+      "mrp": 45,
+      "sellingPrice": 29
+    },
+    {
+      "id": "p011",
+      "name": "Pumpkin",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/pumpkin.png",
+      "mrp": 50,
+      "sellingPrice": 36
+    },
+    {
+      "id": "p012",
+      "name": "Chow Chow",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "/sample-products/chow-chow.png",
+      "mrp": 35,
+      "sellingPrice": 24
+    },
+    {
+      "id": "p013",
+      "name": "Knol Khol",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p014",
+      "name": "Brinjal Gundu",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p015",
+      "name": "Tomato Desi",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 45,
+      "sellingPrice": 29
+    },
+    {
+      "id": "p016",
+      "name": "Tomato",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 45,
+      "sellingPrice": 33
+    },
+    {
+      "id": "p017",
+      "name": "Raw Papaya",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 55,
+      "sellingPrice": 39
+    },
+    {
+      "id": "p018",
+      "name": "Arbi",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p019",
+      "name": "Baby Potato",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p020",
+      "name": "Sweet Potato",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 49
+    },
+    {
+      "id": "p021",
+      "name": "Lemon",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 99,
+      "sellingPrice": 79
+    },
+    {
+      "id": "p022",
+      "name": "Mushroom",
+      "unit": "1 PKT",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 65,
+      "sellingPrice": 48
+    },
+    {
+      "id": "p023",
+      "name": "Peeled Garlic",
+      "unit": "1 PKT",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 60,
+      "sellingPrice": 45
+    },
+    {
+      "id": "p024",
+      "name": "Banana Stem",
+      "unit": "1 PC",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 15,
+      "sellingPrice": 9
+    },
+    {
+      "id": "p025",
+      "name": "Golden Custard",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 160,
+      "sellingPrice": 129
+    },
+    {
+      "id": "p026",
+      "name": "Red Dragon",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 240,
+      "sellingPrice": 189
+    },
+    {
+      "id": "p027",
+      "name": "Apple Ber",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 100,
+      "sellingPrice": 79
+    },
+    {
+      "id": "p028",
+      "name": "Thai Guava",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 110,
+      "sellingPrice": 85
+    },
+    {
+      "id": "p029",
+      "name": "Pineapple",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 80,
+      "sellingPrice": 59
+    },
+    {
+      "id": "p030",
+      "name": "Kiwi",
+      "unit": "3 PC BOX",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 130,
+      "sellingPrice": 99
+    },
+    {
+      "id": "p031",
+      "name": "Citrus",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 150,
+      "sellingPrice": 125
+    },
+    {
+      "id": "p032",
+      "name": "Mosambi",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 90,
+      "sellingPrice": 69
+    },
+    {
+      "id": "p033",
+      "name": "Raw Banana",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 60,
+      "sellingPrice": 45
+    },
+    {
+      "id": "p034",
+      "name": "Green Pear",
+      "unit": "1 KG",
+      "category": "Fruits",
+      "imageUrl": "",
+      "mrp": 350,
+      "sellingPrice": 299
+    },
+    {
+      "id": "p035",
+      "name": "Cabbage",
+      "unit": "1 KG",
+      "category": "Vegetables",
+      "imageUrl": "",
+      "mrp": 55,
+      "sellingPrice": 39
+    }
+  ],
+  "templates": [
+    {
+      "id": "grocery-deals-dynamic",
+      "name": "Grocery Deals Dynamic Grid",
+      "type": "grocery-grid",
+      "config": {
+        "width": 905,
+        "height": 1280,
+        "columns": 7,
+        "rows": 5,
+        "maxProducts": 35,
+        "gridGap": 0,
+        "headerHeight": 382,
+        "badgeSize": 84,
+        "priceTagMode": "selling-mrp-off",
+        "exportScale": 2,
+        "safeArea": {
+          "top": 12,
+          "right": 8,
+          "bottom": 8,
+          "left": 8
+        },
+        "regions": {
+          "header": {
+            "x": 0,
+            "y": 0,
+            "width": 905,
+            "height": 382
+          },
+          "contactStrip": {
+            "x": 24,
+            "y": 307,
+            "width": 858,
+            "height": 58
+          },
+          "productGrid": {
+            "x": 8,
+            "y": 382,
+            "width": 889,
+            "height": 890
+          }
+        },
+        "styles": {
+          "background": "#ffffff",
+          "headerA": "#ffbf26",
+          "headerB": "#f47a22",
+          "headerC": "#ffd447",
+          "strip": "#16843a",
+          "badge": "#dc1019",
+          "label": "#f7bd22",
+          "panel": "#fff6dc",
+          "dark": "#163624",
+          "priceBadge": {
+            "background": "#dc1019",
+            "textColor": "#ffffff",
+            "borderRadius": 12,
+            "priceFontSize": 38,
+            "labelFontSize": 16
+          },
+          "productNameBar": {
+            "background": "#f7bd22",
+            "textColor": "#111111",
+            "fontSize": 13,
+            "fontWeight": 900
+          },
+          "productImageBox": {
+            "xPad": 8,
+            "topPad": 60,
+            "bottomPad": 34
+          }
+        }
+      }
+    }
+  ],
+  "aiGenerations": [],
+  "exportLogs": []
+}
