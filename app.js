@@ -43,6 +43,7 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const DEMO_IMAGE_SIZE = "1024x1024";
 const DEMO_IMAGE_QUALITY = "low";
+const IMAGE_STYLE_VALUES = new Set(["auto", "whole", "bunch", "cut", "prepared"]);
 
 const state = {
   health: null,
@@ -106,6 +107,7 @@ const el = {
   productName: $("#productNameInput"),
   productUnit: $("#productUnitInput"),
   productCategory: $("#productCategoryInput"),
+  productImageStyle: $("#productImageStyleInput"),
   sellingPrice: $("#sellingPriceInput"),
   mrp: $("#mrpInput"),
   imageUrl: $("#imageUrlInput"),
@@ -117,6 +119,7 @@ const el = {
   builderProductName: $("#builderProductNameInput"),
   builderProductUnit: $("#builderProductUnitInput"),
   builderProductCategory: $("#builderProductCategoryInput"),
+  builderImageStyle: $("#builderImageStyleInput"),
   builderSellingPrice: $("#builderSellingPriceInput"),
   builderMrp: $("#builderMrpInput"),
   builderImageUrl: $("#builderImageUrlInput"),
@@ -269,7 +272,7 @@ function wireEvents() {
     renderAll();
   });
 
-  ["productName", "productUnit", "productCategory", "sellingPrice", "mrp", "imageUrl"].forEach((key) => {
+  ["productName", "productUnit", "productCategory", "productImageStyle", "sellingPrice", "mrp", "imageUrl"].forEach((key) => {
     el[key].addEventListener("input", () => {
       updateActiveProductFromInputs();
       syncBuilderProductInputs();
@@ -282,7 +285,9 @@ function wireEvents() {
 
   el.saveProduct.addEventListener("click", saveActiveProduct);
   el.sendToBuilder.addEventListener("click", sendActiveProductToBuilder);
-  ["builderProductName", "builderProductUnit", "builderProductCategory", "builderSellingPrice", "builderMrp", "builderImageUrl"].forEach((key) => {
+  el.productImageStyle.addEventListener("change", () => el.productImageStyle.dispatchEvent(new Event("input")));
+
+  ["builderProductName", "builderProductUnit", "builderProductCategory", "builderImageStyle", "builderSellingPrice", "builderMrp", "builderImageUrl"].forEach((key) => {
     el[key].addEventListener("input", () => {
       updateActiveProductFromBuilderInputs();
       updateBuilderProductSummary(getActiveProduct(), { refreshThumb: key === "builderImageUrl" });
@@ -293,6 +298,7 @@ function wireEvents() {
       drawCanvases();
     });
   });
+  el.builderImageStyle.addEventListener("change", () => el.builderImageStyle.dispatchEvent(new Event("input")));
   el.builderSaveProduct.addEventListener("click", saveActiveProduct);
   el.builderUploadImageButton.addEventListener("click", () => el.builderUploadImage.click());
   el.builderUploadImage.addEventListener("change", () => uploadProductImage("builder"));
@@ -467,7 +473,7 @@ function syncProductInputs() {
   const product = getActiveProduct();
   const hasProduct = Boolean(product);
   syncDemoImageControls();
-  ["productName", "productUnit", "productCategory", "sellingPrice", "mrp", "imageUrl", "saveProduct", "sendToBuilder", "uploadImage", "uploadImageButton", "reuseImage", "regenerateImage"].forEach((key) => {
+  ["productName", "productUnit", "productCategory", "productImageStyle", "sellingPrice", "mrp", "imageUrl", "saveProduct", "sendToBuilder", "uploadImage", "uploadImageButton", "reuseImage", "regenerateImage"].forEach((key) => {
     el[key].disabled = !hasProduct;
   });
 
@@ -475,6 +481,7 @@ function syncProductInputs() {
     el.productName.value = "";
     el.productUnit.value = "";
     el.productCategory.value = "";
+    el.productImageStyle.value = "auto";
     el.sellingPrice.value = "";
     el.mrp.value = "";
     el.imageUrl.value = "";
@@ -484,6 +491,7 @@ function syncProductInputs() {
   el.productName.value = product.name || "";
   el.productUnit.value = product.unit || "";
   el.productCategory.value = product.category || "";
+  el.productImageStyle.value = sanitizeImageStyle(product.imageStyle);
   el.sellingPrice.value = safePrice(product.sellingPrice);
   el.mrp.value = product.mrp ?? "";
   el.imageUrl.value = product.imageUrl || "";
@@ -496,6 +504,7 @@ function syncBuilderProductInputs() {
     "builderProductName",
     "builderProductUnit",
     "builderProductCategory",
+    "builderImageStyle",
     "builderSellingPrice",
     "builderMrp",
     "builderImageUrl",
@@ -514,6 +523,7 @@ function syncBuilderProductInputs() {
     el.builderProductName.value = "";
     el.builderProductUnit.value = "";
     el.builderProductCategory.value = "";
+    el.builderImageStyle.value = "auto";
     el.builderSellingPrice.value = "";
     el.builderMrp.value = "";
     el.builderImageUrl.value = "";
@@ -524,6 +534,7 @@ function syncBuilderProductInputs() {
   el.builderProductName.value = product.name || "";
   el.builderProductUnit.value = product.unit || "";
   el.builderProductCategory.value = product.category || "";
+  el.builderImageStyle.value = sanitizeImageStyle(product.imageStyle);
   el.builderSellingPrice.value = safePrice(product.sellingPrice);
   el.builderMrp.value = product.mrp ?? "";
   el.builderImageUrl.value = product.imageUrl || "";
@@ -536,7 +547,8 @@ function updateBuilderProductSummary(product, { refreshThumb } = { refreshThumb:
     el.builderProductThumb.appendChild(makeThumbContent(product));
   }
   el.builderProductLabel.textContent = product.name || "Untitled Product";
-  el.builderProductMeta.textContent = [product.unit, product.category].filter(Boolean).join(" / ") || "Poster item";
+  const styleLabel = imageStyleLabel(product.imageStyle);
+  el.builderProductMeta.textContent = [product.unit, product.category, styleLabel].filter(Boolean).join(" / ") || "Poster item";
 }
 
 function syncDemoImageControls() {
@@ -741,6 +753,7 @@ async function addProduct() {
       name: "New Product",
       unit: "1 KG",
       category: "Grocery",
+      imageStyle: "auto",
       sellingPrice: 0
     });
     state.products.push(response.product);
@@ -897,6 +910,7 @@ function updateActiveProductFromInputs() {
   product.name = el.productName.value;
   product.unit = el.productUnit.value;
   product.category = el.productCategory.value;
+  product.imageStyle = sanitizeImageStyle(el.productImageStyle.value);
   product.sellingPrice = Number(el.sellingPrice.value || 0);
   product.mrp = el.mrp.value === "" ? null : Number(el.mrp.value || 0);
   product.imageUrl = el.imageUrl.value.trim();
@@ -909,6 +923,7 @@ function updateActiveProductFromBuilderInputs() {
   product.name = el.builderProductName.value;
   product.unit = el.builderProductUnit.value;
   product.category = el.builderProductCategory.value;
+  product.imageStyle = sanitizeImageStyle(el.builderImageStyle.value);
   product.sellingPrice = Number(el.builderSellingPrice.value || 0);
   product.mrp = el.builderMrp.value === "" ? null : Number(el.builderMrp.value || 0);
   product.imageUrl = el.builderImageUrl.value.trim();
@@ -1628,6 +1643,21 @@ function validateProductImageFile(file) {
     return "Image must be 10MB or smaller.";
   }
   return "";
+}
+
+function sanitizeImageStyle(value) {
+  return IMAGE_STYLE_VALUES.has(value) ? value : "auto";
+}
+
+function imageStyleLabel(value) {
+  const labels = {
+    auto: "Auto style",
+    whole: "Whole",
+    bunch: "Bunch",
+    cut: "Cut / Half",
+    prepared: "Prepared"
+  };
+  return labels[sanitizeImageStyle(value)] || labels.auto;
 }
 
 function sanitizePriceTagMode(value) {

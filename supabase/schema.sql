@@ -3,6 +3,7 @@ create table if not exists public.products (
   name text not null,
   unit text not null default '',
   category text not null default '',
+  image_style text not null default 'auto',
   image_url text not null default '',
   mrp numeric,
   selling_price numeric not null default 0,
@@ -11,6 +12,13 @@ create table if not exists public.products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.products
+drop constraint if exists products_image_style_check;
+
+alter table public.products
+add constraint products_image_style_check
+check (image_style in ('auto', 'whole', 'bunch', 'cut', 'prepared'));
 
 create table if not exists public.poster_templates (
   id text primary key,
