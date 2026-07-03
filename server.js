@@ -153,6 +153,14 @@ app.post("/api/products/:id/generate-image", asyncHandler(async (request, respon
   }
 
   const body = request.body || {};
+  const productForGeneration = {
+    ...product,
+    name: typeof body.name === "string" ? body.name.trim() || product.name : product.name,
+    unit: typeof body.unit === "string" ? body.unit.trim() : product.unit,
+    category: typeof body.category === "string" ? body.category.trim() : product.category,
+    imageStyle: typeof body.imageStyle === "string" ? body.imageStyle : product.imageStyle
+  };
+
   if (product.imageUrl && !body.regenerate) {
     response.json({
       reused: true,
@@ -164,7 +172,7 @@ app.post("/api/products/:id/generate-image", asyncHandler(async (request, respon
 
   const imageResult = await generateProductImage({
     config,
-    product,
+    product: productForGeneration,
     size: DEMO_IMAGE_SIZE,
     quality: DEMO_IMAGE_QUALITY,
     outputFormat: body.outputFormat,

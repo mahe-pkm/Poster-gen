@@ -1017,6 +1017,13 @@ async function saveActiveProduct() {
   const product = getActiveProduct();
   if (!product) return;
 
+  return persistActiveProduct({ showToast: true });
+}
+
+async function persistActiveProduct({ showToast = false } = {}) {
+  const product = getActiveProduct();
+  if (!product) return null;
+
   disableControls([el.saveProduct, el.builderSaveProduct], true);
   try {
     const response = await apiPut(`/api/products/${encodeURIComponent(product.id)}`, product);
@@ -1027,9 +1034,15 @@ async function saveActiveProduct() {
     renderImageState();
     preloadVisibleImages();
     drawCanvases();
-    toast("Product saved");
+    if (showToast) {
+      toast("Product saved");
+    }
+    return response.product;
   } catch (error) {
-    toast(error.message || "Product save failed");
+    if (showToast) {
+      toast(error.message || "Product save failed");
+    }
+    throw error;
   } finally {
     const hasProduct = Boolean(getActiveProduct());
     disableControls([el.saveProduct, el.builderSaveProduct], !hasProduct);
@@ -1095,8 +1108,13 @@ async function generateImage(regenerate) {
   el.aiStatus.textContent = regenerate ? "Generating replacement image..." : "Checking reusable image...";
 
   try {
+    await persistActiveProduct();
     const response = await apiPost(`/api/products/${encodeURIComponent(product.id)}/generate-image`, {
       regenerate,
+      name: product.name,
+      unit: product.unit,
+      category: product.category,
+      imageStyle: product.imageStyle,
       size: DEMO_IMAGE_SIZE,
       quality: DEMO_IMAGE_QUALITY,
       outputFormat: "png",
