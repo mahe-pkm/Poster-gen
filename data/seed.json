@@ -2,13 +2,18 @@
   "brand": {
     "storeName": "GrandPlus",
     "localName": "Grand Plus",
+    "hypermarketLabel": "HYPERMARKET",
     "headline": "GROCERY",
     "subheadline": "DEALS",
     "phone": "9731148888",
     "validUntil": "25-10-2025",
     "deliveryText": "FREE DELIVERY",
     "priceMode": "selling-with-only",
-    "showDiscount": false
+    "showDiscount": false,
+    "logoDataUrl": "",
+    "logoX": 330,
+    "logoY": 42,
+    "logoWidth": 250
   },
   "products": [
     {

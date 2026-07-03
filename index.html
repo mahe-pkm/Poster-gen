@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Store Poster Maker</title>
     <link rel="icon" href="data:,">
-    <link rel="stylesheet" href="/styles.css?v=20260702-5">
-    <script src="/app.js?v=20260702-5" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=20260703-2">
+    <script src="/app.js?v=20260703-2" defer></script>
   </head>
   <body>
     <header class="app-header">
@@ -171,6 +171,67 @@
             </label>
           </section>
 
+          <section class="control-section is-collapsible" aria-label="Design mode controls" data-collapse-key="design-mode">
+            <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="design-mode">
+              <span class="section-title">Design Mode</span>
+              <span class="section-chevron" aria-hidden="true"></span>
+            </button>
+            <label class="switch-row">
+              <input id="designModeInput" type="checkbox">
+              <span>
+                <strong>Move poster elements</strong>
+                <small>Drag selected items on the canvas.</small>
+              </span>
+            </label>
+            <label>
+              Selected Element
+              <select id="designElementSelect"></select>
+            </label>
+            <div class="two-column">
+              <label class="range-control">
+                <span>
+                  X
+                  <strong id="designXValue">0px</strong>
+                </span>
+                <input id="designXInput" type="range" min="0" max="905" step="1">
+              </label>
+              <label class="range-control">
+                <span>
+                  Y
+                  <strong id="designYValue">0px</strong>
+                </span>
+                <input id="designYInput" type="range" min="0" max="1280" step="1">
+              </label>
+            </div>
+            <div class="two-column">
+              <label class="range-control">
+                <span>
+                  Width
+                  <strong id="designWidthValue">0px</strong>
+                </span>
+                <input id="designWidthInput" type="range" min="40" max="905" step="1">
+              </label>
+              <label class="range-control">
+                <span>
+                  Height
+                  <strong id="designHeightValue">0px</strong>
+                </span>
+                <input id="designHeightInput" type="range" min="20" max="1280" step="1">
+              </label>
+            </div>
+            <div class="button-row">
+              <label class="switch-row compact-switch">
+                <input id="designVisibleInput" type="checkbox">
+                <span>Visible</span>
+              </label>
+              <label class="switch-row compact-switch">
+                <input id="designLockedInput" type="checkbox">
+                <span>Locked</span>
+              </label>
+            </div>
+            <button id="resetDesignElementButton" class="secondary-button full-width-button" type="button">Reset Element</button>
+          </section>
+
           <section class="control-section is-collapsible" aria-label="Selected poster content" data-collapse-key="builder-product-content">
             <button class="section-toggle collapsible-section-header" type="button" aria-expanded="true" data-section-toggle="builder-product-content">
               <span class="section-title">Selected Product Content</span>
@@ -242,6 +303,38 @@
               Local Name
               <input id="localNameInput" type="text" autocomplete="off">
             </label>
+            <label>
+              Hypermarket Label
+              <input id="hypermarketLabelInput" type="text" autocomplete="off">
+            </label>
+            <label>
+              Logo Image
+              <input id="logoImageInput" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <button id="clearLogoButton" class="secondary-button full-width-button" type="button">Clear Logo</button>
+            <label class="range-control">
+              <span>
+                Logo Size
+                <strong id="logoSizeValue">250px</strong>
+              </span>
+              <input id="logoSizeInput" type="range" min="50" max="420" step="1">
+            </label>
+            <div class="two-column">
+              <label class="range-control">
+                <span>
+                  Logo X
+                  <strong id="logoXValue">330px</strong>
+                </span>
+                <input id="logoXInput" type="range" min="0" max="905" step="1">
+              </label>
+              <label class="range-control">
+                <span>
+                  Logo Y
+                  <strong id="logoYValue">42px</strong>
+                </span>
+                <input id="logoYInput" type="range" min="0" max="1280" step="1">
+              </label>
+            </div>
             <div class="two-column">
               <label>
                 Headline

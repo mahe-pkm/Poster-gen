@@ -44,6 +44,25 @@ const ALLOWED_UPLOAD_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const DEMO_IMAGE_SIZE = "1024x1024";
 const DEMO_IMAGE_QUALITY = "low";
 const IMAGE_STYLE_VALUES = new Set(["auto", "whole", "bunch", "cut", "prepared"]);
+const DEFAULT_LOGO_SETTINGS = {
+  logoDataUrl: "",
+  logoX: 330,
+  logoY: 42,
+  logoWidth: 250
+};
+const DESIGN_ELEMENTS = {
+  localName: { label: "Local Name", kind: "text", minW: 70, minH: 16 },
+  storeName: { label: "Brand Name", kind: "text", minW: 90, minH: 18 },
+  hypermarket: { label: "Hypermarket Text", kind: "text", minW: 90, minH: 10 },
+  headline: { label: "Headline", kind: "text", minW: 130, minH: 28 },
+  subheadline: { label: "Subheadline", kind: "text", minW: 130, minH: 28 },
+  basket: { label: "Basket Graphic", kind: "box", minW: 70, minH: 60 },
+  delivery: { label: "Delivery Block", kind: "box", minW: 70, minH: 90 },
+  contactStrip: { label: "Contact Strip", kind: "box", minW: 260, minH: 34 },
+  productGrid: { label: "Product Grid", kind: "box", minW: 180, minH: 180 },
+  logo: { label: "Logo", kind: "box", minW: 40, minH: 24 }
+};
+const DESIGN_ELEMENT_ORDER = Object.keys(DESIGN_ELEMENTS);
 
 const state = {
   health: null,
@@ -56,26 +75,54 @@ const state = {
   activeTab: "products",
   search: "",
   posterSearch: "",
-  hitAreas: []
+  hitAreas: [],
+  designMode: false,
+  selectedElementId: "headline",
+  designAreas: [],
+  designDrag: null
 };
 
 const imageCache = new Map();
 const imageLoading = new Set();
+let logoImage = null;
+let logoImageSource = "";
 let toastTimer = null;
 
 const el = {
   healthBadge: $("#healthBadge"),
   storeName: $("#storeNameInput"),
   localName: $("#localNameInput"),
+  hypermarketLabel: $("#hypermarketLabelInput"),
   headline: $("#headlineInput"),
   subheadline: $("#subheadlineInput"),
   phone: $("#phoneInput"),
   validUntil: $("#validUntilInput"),
   deliveryText: $("#deliveryTextInput"),
+  logoImage: $("#logoImageInput"),
+  clearLogo: $("#clearLogoButton"),
+  logoSize: $("#logoSizeInput"),
+  logoX: $("#logoXInput"),
+  logoY: $("#logoYInput"),
+  logoSizeValue: $("#logoSizeValue"),
+  logoXValue: $("#logoXValue"),
+  logoYValue: $("#logoYValue"),
   saveBrand: $("#saveBrandButton"),
   productTemplateSelect: $("#productTemplateSelect"),
   builderTemplateSelect: $("#builderTemplateSelect"),
   builderPriceTag: $("#builderPriceTagInput"),
+  designMode: $("#designModeInput"),
+  designElement: $("#designElementSelect"),
+  designX: $("#designXInput"),
+  designY: $("#designYInput"),
+  designWidth: $("#designWidthInput"),
+  designHeight: $("#designHeightInput"),
+  designXValue: $("#designXValue"),
+  designYValue: $("#designYValue"),
+  designWidthValue: $("#designWidthValue"),
+  designHeightValue: $("#designHeightValue"),
+  designVisible: $("#designVisibleInput"),
+  designLocked: $("#designLockedInput"),
+  resetDesignElement: $("#resetDesignElementButton"),
   templateSelect: $("#templateSelect"),
   templateName: $("#templateNameInput"),
   priceTag: $("#priceTagInput"),
@@ -160,6 +207,8 @@ async function boot() {
   } finally {
     disableUi(false);
     syncDemoImageControls();
+    syncLogoInputs();
+    syncDesignControls();
     syncProductInputs();
   }
 }
@@ -173,7 +222,7 @@ async function loadInitialData() {
   ]);
 
   state.health = health;
-  state.brand = brand.brand;
+  state.brand = normalizeBrand(brand.brand);
   state.products = products.products || [];
   state.templates = templates.templates || [];
   state.template = state.templates[0] || makeFallbackTemplate();
@@ -182,6 +231,7 @@ async function loadInitialData() {
   const maxProducts = config.maxProducts || config.columns * config.rows;
   state.selectedIds = state.products.slice(0, maxProducts).map((product) => product.id);
   state.activeProductId = state.selectedIds[0] || state.products[0]?.id || null;
+  preloadLogoImage();
   preloadVisibleImages();
 }
 
@@ -192,6 +242,7 @@ function wireEvents() {
   [
     ["storeName", "storeName"],
     ["localName", "localName"],
+    ["hypermarketLabel", "hypermarketLabel"],
     ["headline", "headline"],
     ["subheadline", "subheadline"],
     ["phone", "phone"],
@@ -202,6 +253,21 @@ function wireEvents() {
       state.brand[brandKey] = el[elementKey].value;
       drawCanvases();
       renderHeaderMetrics();
+    });
+  });
+
+  el.logoImage.addEventListener("change", uploadLogoImage);
+  el.clearLogo.addEventListener("click", clearLogoImage);
+
+  [
+    ["logoSize", "logoWidth", 50, 420],
+    ["logoX", "logoX", 0, DEFAULT_CONFIG.width],
+    ["logoY", "logoY", 0, DEFAULT_CONFIG.height]
+  ].forEach(([elementKey, brandKey, min, max]) => {
+    el[elementKey].addEventListener("input", () => {
+      state.brand[brandKey] = clamp(Number(el[elementKey].value), min, max);
+      syncLogoInputs();
+      drawCanvases();
     });
   });
 
@@ -221,6 +287,42 @@ function wireEvents() {
 
   el.builderPriceTag.addEventListener("change", () => {
     updateTemplateConfig("priceTagMode", el.builderPriceTag.value);
+  });
+
+  el.designMode.addEventListener("change", () => {
+    state.designMode = el.designMode.checked;
+    el.posterCanvas.classList.toggle("is-design-mode", state.designMode);
+    syncDesignControls();
+    drawPoster();
+  });
+
+  el.designElement.addEventListener("change", () => {
+    state.selectedElementId = el.designElement.value;
+    syncDesignControls();
+    drawPoster();
+  });
+
+  [
+    ["designX", "x"],
+    ["designY", "y"],
+    ["designWidth", "w"],
+    ["designHeight", "h"]
+  ].forEach(([elementKey, fieldKey]) => {
+    el[elementKey].addEventListener("input", () => {
+      updateDesignElement(state.selectedElementId, { [fieldKey]: Number(el[elementKey].value) });
+    });
+  });
+
+  el.designVisible.addEventListener("change", () => {
+    updateDesignElement(state.selectedElementId, { visible: el.designVisible.checked });
+  });
+
+  el.designLocked.addEventListener("change", () => {
+    updateDesignElement(state.selectedElementId, { locked: el.designLocked.checked });
+  });
+
+  el.resetDesignElement.addEventListener("click", () => {
+    resetDesignElement(state.selectedElementId);
   });
 
   el.templateName.addEventListener("input", () => {
@@ -308,7 +410,13 @@ function wireEvents() {
   el.regenerateImage.addEventListener("click", () => generateImage(true));
   el.download.addEventListener("click", exportPoster);
 
+  el.posterCanvas.addEventListener("pointerdown", handleDesignPointerDown);
+  window.addEventListener("pointermove", handleDesignPointerMove);
+  window.addEventListener("pointerup", handleDesignPointerUp);
+  window.addEventListener("keydown", handleDesignKeyDown);
+
   el.posterCanvas.addEventListener("click", (event) => {
+    if (state.designMode) return;
     const config = getConfig();
     const rect = el.posterCanvas.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * config.width;
@@ -414,6 +522,7 @@ function renderAll() {
   syncBrandInputs();
   syncTemplateSelector();
   syncTemplateInputs();
+  syncDesignControls();
   syncProductInputs();
   syncBuilderProductInputs();
   renderProductList();
@@ -425,13 +534,37 @@ function renderAll() {
 
 function syncBrandInputs() {
   if (!state.brand) return;
+  state.brand = normalizeBrand(state.brand);
   el.storeName.value = state.brand.storeName || "";
   el.localName.value = state.brand.localName || "";
+  el.hypermarketLabel.value = state.brand.hypermarketLabel || "";
   el.headline.value = state.brand.headline || "";
   el.subheadline.value = state.brand.subheadline || "";
   el.phone.value = state.brand.phone || "";
   el.validUntil.value = state.brand.validUntil || "";
   el.deliveryText.value = state.brand.deliveryText || "";
+  syncLogoInputs();
+}
+
+function syncLogoInputs() {
+  if (!state.brand) return;
+  const config = getConfig();
+  const logoWidth = clamp(Number(state.brand.logoWidth || DEFAULT_LOGO_SETTINGS.logoWidth), 50, 420);
+  const logoX = clamp(Number(state.brand.logoX ?? DEFAULT_LOGO_SETTINGS.logoX), 0, config.width);
+  const logoY = clamp(Number(state.brand.logoY ?? DEFAULT_LOGO_SETTINGS.logoY), 0, config.height);
+  state.brand.logoWidth = logoWidth;
+  state.brand.logoX = logoX;
+  state.brand.logoY = logoY;
+  el.logoSize.max = "420";
+  el.logoX.max = String(config.width);
+  el.logoY.max = String(config.height);
+  el.logoSize.value = String(logoWidth);
+  el.logoX.value = String(logoX);
+  el.logoY.value = String(logoY);
+  el.logoSizeValue.textContent = `${logoWidth}px`;
+  el.logoXValue.textContent = `${logoX}px`;
+  el.logoYValue.textContent = `${logoY}px`;
+  el.clearLogo.disabled = !state.brand.logoDataUrl;
 }
 
 function syncTemplateSelector() {
@@ -467,6 +600,64 @@ function syncTemplateInputs() {
   [...el.presetRow.querySelectorAll("button")].forEach((button) => {
     button.classList.toggle("is-active", button.dataset.preset === activePreset);
   });
+  syncLogoInputs();
+  syncDesignControls();
+}
+
+function syncDesignControls() {
+  if (!el.designElement || !state.template) return;
+  const config = getConfig();
+  const elements = getDesignElements(config);
+
+  if (el.designElement.options.length !== DESIGN_ELEMENT_ORDER.length) {
+    el.designElement.innerHTML = "";
+    elements.forEach((element) => {
+      const option = document.createElement("option");
+      option.value = element.id;
+      option.textContent = element.label;
+      el.designElement.appendChild(option);
+    });
+  }
+
+  if (!DESIGN_ELEMENTS[state.selectedElementId]) {
+    state.selectedElementId = DESIGN_ELEMENT_ORDER[0];
+  }
+
+  const selected = getDesignElement(state.selectedElementId, config);
+  el.designMode.checked = state.designMode;
+  el.designElement.value = selected.id;
+
+  const enabled = state.designMode && Boolean(selected);
+  [
+    el.designElement,
+    el.designX,
+    el.designY,
+    el.designWidth,
+    el.designHeight,
+    el.designVisible,
+    el.designLocked,
+    el.resetDesignElement
+  ].forEach((control) => {
+    control.disabled = !enabled;
+  });
+
+  el.designX.max = String(config.width);
+  el.designY.max = String(config.height);
+  el.designWidth.max = String(config.width);
+  el.designHeight.max = String(config.height);
+  el.designWidth.min = String(selected.minW);
+  el.designHeight.min = String(selected.minH);
+  el.designX.value = String(Math.round(selected.x));
+  el.designY.value = String(Math.round(selected.y));
+  el.designWidth.value = String(Math.round(selected.w));
+  el.designHeight.value = String(Math.round(selected.h));
+  el.designXValue.textContent = `${Math.round(selected.x)}px`;
+  el.designYValue.textContent = `${Math.round(selected.y)}px`;
+  el.designWidthValue.textContent = `${Math.round(selected.w)}px`;
+  el.designHeightValue.textContent = `${Math.round(selected.h)}px`;
+  el.designVisible.checked = selected.visible;
+  el.designLocked.checked = selected.locked;
+  el.posterCanvas.classList.toggle("is-design-mode", state.designMode);
 }
 
 function syncProductInputs() {
@@ -694,7 +885,8 @@ async function saveBrand() {
   disableControls([el.saveBrand], true);
   try {
     const response = await apiPut("/api/brand", state.brand);
-    state.brand = response.brand;
+    state.brand = normalizeBrand(response.brand);
+    preloadLogoImage();
     syncBrandInputs();
     drawCanvases();
     toast("Store saved");
@@ -702,6 +894,61 @@ async function saveBrand() {
     toast(error.message || "Store save failed");
   } finally {
     disableControls([el.saveBrand], false);
+  }
+}
+
+async function uploadLogoImage() {
+  const file = el.logoImage.files?.[0];
+  el.logoImage.value = "";
+  if (!file) return;
+
+  const uploadError = validateProductImageFile(file);
+  if (uploadError) {
+    toast(uploadError);
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("logo", file);
+
+  disableControls([el.logoImage, el.clearLogo, el.saveBrand], true);
+  try {
+    const response = await api("/api/brand/upload-logo", {
+      method: "POST",
+      body: formData
+    });
+    state.brand = normalizeBrand(response.brand);
+    preloadLogoImage();
+    syncLogoInputs();
+    drawCanvases();
+    toast("Logo uploaded");
+  } catch (error) {
+    toast(error.message || "Logo upload failed");
+    console.error(error);
+  } finally {
+    disableControls([el.logoImage, el.clearLogo, el.saveBrand], false);
+    syncLogoInputs();
+  }
+}
+
+async function clearLogoImage() {
+  if (!state.brand) return;
+  state.brand.logoDataUrl = "";
+  logoImage = null;
+  logoImageSource = "";
+  syncLogoInputs();
+  drawCanvases();
+
+  disableControls([el.clearLogo, el.logoImage, el.saveBrand], true);
+  try {
+    const response = await apiPut("/api/brand", state.brand);
+    state.brand = normalizeBrand(response.brand);
+    toast("Logo cleared");
+  } catch (error) {
+    toast(error.message || "Logo clear failed");
+  } finally {
+    disableControls([el.logoImage, el.saveBrand], false);
+    syncLogoInputs();
   }
 }
 
@@ -1058,6 +1305,229 @@ function replaceTemplate(nextTemplate) {
   }
 }
 
+function defaultDesignElement(id, config) {
+  const headerHeight = config.headerHeight;
+  const gridY = headerHeight + 4;
+  const defaults = {
+    localName: { x: 24, y: 54, w: 300, h: 30 },
+    storeName: { x: 340, y: 58, w: 340, h: 38 },
+    hypermarket: { x: 420, y: 96, w: 200, h: 14 },
+    headline: { x: 34, y: 176, w: 560, h: 88 },
+    subheadline: { x: 36, y: 284, w: 520, h: 84 },
+    basket: { x: config.width * 0.58, y: Math.max(150, headerHeight * 0.42), w: 200, h: 160 },
+    delivery: { x: config.width - 184, y: 18, w: 184, h: 246 },
+    contactStrip: { x: 24, y: Math.max(154, headerHeight - 75), w: config.width - 48, h: 58 },
+    productGrid: { x: 8, y: gridY, w: config.width - 16, h: config.height - gridY - 8 },
+    logo: {
+      x: Number(state.brand?.logoX ?? DEFAULT_LOGO_SETTINGS.logoX),
+      y: Number(state.brand?.logoY ?? DEFAULT_LOGO_SETTINGS.logoY),
+      w: Number(state.brand?.logoWidth ?? DEFAULT_LOGO_SETTINGS.logoWidth),
+      h: logoImage ? Number(state.brand?.logoWidth ?? DEFAULT_LOGO_SETTINGS.logoWidth) * (logoImage.height / logoImage.width) : 90
+    }
+  };
+  return defaults[id] || { x: 0, y: 0, w: 100, h: 60 };
+}
+
+function getDesignElement(id, config = getConfig()) {
+  const meta = DESIGN_ELEMENTS[id] || DESIGN_ELEMENTS.headline;
+  const base = defaultDesignElement(id, config);
+  const saved = config.layoutElements?.[id] || {};
+  return normalizeDesignElement({
+    id,
+    label: meta.label,
+    kind: meta.kind,
+    minW: meta.minW,
+    minH: meta.minH,
+    visible: true,
+    locked: false,
+    ...base,
+    ...saved
+  }, config);
+}
+
+function getDesignElements(config = getConfig()) {
+  return DESIGN_ELEMENT_ORDER.map((id) => getDesignElement(id, config));
+}
+
+function normalizeDesignElement(element, config) {
+  const minW = Number(element.minW || 40);
+  const minH = Number(element.minH || 24);
+  const width = clamp(Number(element.w), minW, config.width);
+  const height = clamp(Number(element.h), minH, config.height);
+  return {
+    ...element,
+    minW,
+    minH,
+    x: clamp(Number(element.x), -width, config.width),
+    y: clamp(Number(element.y), -height, config.height),
+    w: width,
+    h: height,
+    visible: element.visible !== false,
+    locked: element.locked === true
+  };
+}
+
+function designElementArea(element) {
+  if (element.kind === "text") {
+    return {
+      x: element.x,
+      y: element.y - element.h,
+      w: element.w,
+      h: element.h + 8
+    };
+  }
+  return {
+    x: element.x,
+    y: element.y,
+    w: element.w,
+    h: element.h
+  };
+}
+
+function updateDesignElement(id, patch) {
+  if (!id || !state.template) return;
+  const config = getConfig();
+  const current = getDesignElement(id, config);
+  const next = normalizeDesignElement({ ...current, ...patch }, config);
+  config.layoutElements = {
+    ...(config.layoutElements || {}),
+    [id]: {
+      x: Math.round(next.x),
+      y: Math.round(next.y),
+      w: Math.round(next.w),
+      h: Math.round(next.h),
+      visible: next.visible,
+      locked: next.locked
+    }
+  };
+  state.template.config = config;
+
+  if (id === "logo") {
+    state.brand.logoX = Math.round(next.x);
+    state.brand.logoY = Math.round(next.y);
+    state.brand.logoWidth = Math.round(next.w);
+    syncLogoInputs();
+  }
+
+  state.selectedElementId = id;
+  syncDesignControls();
+  drawCanvases();
+}
+
+function resetDesignElement(id) {
+  if (!id || !state.template) return;
+  const config = getConfig();
+  if (config.layoutElements?.[id]) {
+    delete config.layoutElements[id];
+  }
+  state.template.config = config;
+  syncDesignControls();
+  drawCanvases();
+}
+
+function canvasPoint(event) {
+  const config = getConfig();
+  const rect = el.posterCanvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * config.width,
+    y: ((event.clientY - rect.top) / rect.height) * config.height
+  };
+}
+
+function findDesignTarget(point, config = getConfig()) {
+  const elements = getDesignElements(config).filter((element) => element.visible || element.id === state.selectedElementId);
+  for (const element of elements.slice().reverse()) {
+    const area = designElementArea(element);
+    const handleSize = 18;
+    const inHandle =
+      point.x >= area.x + area.w - handleSize &&
+      point.x <= area.x + area.w + handleSize &&
+      point.y >= area.y + area.h - handleSize &&
+      point.y <= area.y + area.h + handleSize;
+    if (inHandle) {
+      return { element, mode: "resize" };
+    }
+
+    if (point.x >= area.x && point.x <= area.x + area.w && point.y >= area.y && point.y <= area.y + area.h) {
+      return { element, mode: "move" };
+    }
+  }
+  return null;
+}
+
+function handleDesignPointerDown(event) {
+  if (!state.designMode) return;
+  event.preventDefault();
+  const config = getConfig();
+  const point = canvasPoint(event);
+  const target = findDesignTarget(point, config);
+  if (!target) {
+    state.designDrag = null;
+    drawPoster();
+    return;
+  }
+
+  state.selectedElementId = target.element.id;
+  syncDesignControls();
+  drawPoster();
+
+  if (target.element.locked) {
+    toast(`${target.element.label} is locked`);
+    return;
+  }
+
+  state.designDrag = {
+    id: target.element.id,
+    mode: target.mode,
+    startX: point.x,
+    startY: point.y,
+    startRect: { x: target.element.x, y: target.element.y, w: target.element.w, h: target.element.h }
+  };
+  el.posterCanvas.setPointerCapture?.(event.pointerId);
+}
+
+function handleDesignPointerMove(event) {
+  if (!state.designMode || !state.designDrag) return;
+  const point = canvasPoint(event);
+  const drag = state.designDrag;
+  const dx = point.x - drag.startX;
+  const dy = point.y - drag.startY;
+
+  if (drag.mode === "resize") {
+    updateDesignElement(drag.id, {
+      w: drag.startRect.w + dx,
+      h: drag.startRect.h + dy
+    });
+    return;
+  }
+
+  updateDesignElement(drag.id, {
+    x: drag.startRect.x + dx,
+    y: drag.startRect.y + dy
+  });
+}
+
+function handleDesignPointerUp() {
+  state.designDrag = null;
+}
+
+function handleDesignKeyDown(event) {
+  if (!state.designMode || !state.selectedElementId) return;
+  if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+
+  const element = getDesignElement(state.selectedElementId);
+  if (element.locked) return;
+
+  event.preventDefault();
+  const step = event.shiftKey ? 10 : 1;
+  const patch = {};
+  if (event.key === "ArrowLeft") patch.x = element.x - step;
+  if (event.key === "ArrowRight") patch.x = element.x + step;
+  if (event.key === "ArrowUp") patch.y = element.y - step;
+  if (event.key === "ArrowDown") patch.y = element.y + step;
+  updateDesignElement(element.id, patch);
+}
+
 function makeGeneratedTemplateName(config) {
   const brand = (state.brand?.storeName || "Store").trim();
   return `${brand} ${config.columns}x${config.rows} Template`;
@@ -1102,6 +1572,34 @@ function preloadVisibleImages() {
   });
 }
 
+function preloadLogoImage() {
+  const source = state.brand?.logoDataUrl || "";
+  if (!source) {
+    logoImage = null;
+    logoImageSource = "";
+    return;
+  }
+
+  if (logoImage && logoImageSource === source) {
+    return;
+  }
+
+  logoImage = null;
+  logoImageSource = source;
+  const img = new Image();
+  img.onload = () => {
+    if (logoImageSource !== source) return;
+    logoImage = img;
+    drawCanvases();
+  };
+  img.onerror = () => {
+    if (logoImageSource !== source) return;
+    logoImage = null;
+    drawCanvases();
+  };
+  img.src = source;
+}
+
 function drawCanvases() {
   drawPoster();
   drawTemplatePreview();
@@ -1128,7 +1626,11 @@ function drawPoster(targetCanvas = el.posterCanvas, scale = 1) {
   drawBackground(ctx, config);
   drawHeader(ctx, config);
   drawContactStrip(ctx, config);
-  drawProducts(ctx, config);
+  drawProducts(ctx, config, canvas === el.posterCanvas);
+  drawLogo(ctx, config);
+  if (canvas === el.posterCanvas && state.designMode) {
+    drawDesignOverlay(ctx, config);
+  }
   ctx.restore();
 }
 
@@ -1161,22 +1663,44 @@ function drawHeader(ctx, config) {
   }
   ctx.restore();
 
+  const localName = getDesignElement("localName", config);
+  const storeName = getDesignElement("storeName", config);
+  const hypermarket = getDesignElement("hypermarket", config);
+  const headline = getDesignElement("headline", config);
+  const subheadline = getDesignElement("subheadline", config);
+  const basket = getDesignElement("basket", config);
+  const delivery = getDesignElement("delivery", config);
+
   ctx.fillStyle = "#e31318";
-  fittedText(ctx, state.brand?.localName || "", 24, 54, 300, 30, 18, "900", '"Segoe UI", Arial, sans-serif');
-  fittedText(ctx, state.brand?.storeName || "GrandPlus", 340, 58, 340, 38, 24, "950", "Arial, sans-serif");
+  if (localName.visible) {
+    fittedText(ctx, state.brand?.localName || "", localName.x, localName.y, localName.w, localName.h, 18, "900", '"Segoe UI", Arial, sans-serif');
+  }
+  if (storeName.visible) {
+    fittedText(ctx, state.brand?.storeName || "GrandPlus", storeName.x, storeName.y, storeName.w, storeName.h, 24, "950", "Arial, sans-serif");
+  }
   ctx.fillStyle = "#9e2a2a";
-  spreadText(ctx, "HYPERMARKET", 420, 96, 200, 14);
+  if (hypermarket.visible) {
+    spreadText(ctx, state.brand?.hypermarketLabel || "HYPERMARKET", hypermarket.x, hypermarket.y, hypermarket.w, hypermarket.h);
+  }
 
   ctx.fillStyle = "#ffffff";
   ctx.shadowColor = "rgb(0 0 0 / 0.17)";
   ctx.shadowBlur = 10;
   ctx.shadowOffsetY = 4;
-  fittedText(ctx, String(state.brand?.headline || "GROCERY").toUpperCase(), 34, 176, 560, 88, 46, "950", "Arial Black, Arial, sans-serif");
-  fittedText(ctx, String(state.brand?.subheadline || "DEALS").toUpperCase(), 36, 284, 520, 84, 44, "950", "Arial Black, Arial, sans-serif");
+  if (headline.visible) {
+    fittedText(ctx, String(state.brand?.headline || "GROCERY").toUpperCase(), headline.x, headline.y, headline.w, headline.h, 46, "950", "Arial Black, Arial, sans-serif");
+  }
+  if (subheadline.visible) {
+    fittedText(ctx, String(state.brand?.subheadline || "DEALS").toUpperCase(), subheadline.x, subheadline.y, subheadline.w, subheadline.h, 44, "950", "Arial Black, Arial, sans-serif");
+  }
   ctx.shadowColor = "transparent";
 
-  drawBasket(ctx, config.width * 0.58, Math.max(150, headerHeight * 0.42));
-  drawDelivery(ctx, config.width - 184, 18, styles);
+  if (basket.visible) {
+    drawScaledGraphic(ctx, basket, 200, 160, () => drawBasket(ctx, 0, 0));
+  }
+  if (delivery.visible) {
+    drawScaledGraphic(ctx, delivery, 184, 246, () => drawDelivery(ctx, 0, 0, styles));
+  }
 }
 
 function drawBasket(ctx, x, y) {
@@ -1227,6 +1751,14 @@ function drawProduceBlob(ctx, x, y, w, h, color) {
   ctx.beginPath();
   ctx.ellipse(x - w * 0.25, y - h * 0.25, w * 0.24, h * 0.18, -0.5, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+function drawScaledGraphic(ctx, rect, baseWidth, baseHeight, draw) {
+  ctx.save();
+  ctx.translate(rect.x, rect.y);
+  ctx.scale(rect.w / baseWidth, rect.h / baseHeight);
+  draw();
   ctx.restore();
 }
 
@@ -1288,42 +1820,93 @@ function drawDelivery(ctx, x, y, styles) {
   ctx.restore();
 }
 
+function drawLogo(ctx, config) {
+  if (!logoImage || !state.brand?.logoDataUrl) return;
+
+  const logo = getDesignElement("logo", config);
+  if (!logo.visible) return;
+
+  ctx.save();
+  ctx.shadowColor = "rgb(0 0 0 / 0.14)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 3;
+  drawImageContain(ctx, logoImage, logo.x, logo.y, logo.w, logo.h);
+  ctx.restore();
+}
+
+function drawDesignOverlay(ctx, config) {
+  state.designAreas = getDesignElements(config).map((element) => ({
+    ...designElementArea(element),
+    id: element.id,
+    label: element.label,
+    visible: element.visible,
+    locked: element.locked
+  }));
+
+  ctx.save();
+  ctx.textBaseline = "alphabetic";
+  state.designAreas.forEach((area) => {
+    const selected = area.id === state.selectedElementId;
+    if (!area.visible && !selected) return;
+
+    ctx.setLineDash(selected ? [] : [7, 6]);
+    ctx.lineWidth = selected ? 3 : 1.5;
+    ctx.strokeStyle = selected ? "#0b7cff" : "rgb(11 124 255 / 0.55)";
+    ctx.strokeRect(area.x, area.y, area.w, area.h);
+
+    if (selected) {
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#0b7cff";
+      ctx.fillRect(area.x + area.w - 9, area.y + area.h - 9, 18, 18);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "900 13px Arial, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "rgb(11 124 255 / 0.96)";
+      roundedRect(ctx, area.x, Math.max(0, area.y - 24), Math.min(180, Math.max(76, area.label.length * 8 + 20)), 20, 5);
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(`${area.label}${area.locked ? " locked" : ""}`, area.x + 8, Math.max(15, area.y - 9));
+    }
+  });
+  ctx.restore();
+}
+
 function drawContactStrip(ctx, config) {
   const styles = config.styles;
-  const y = Math.max(154, config.headerHeight - 75);
-  const h = 58;
-  const x = 24;
-  const w = config.width - 48;
+  const contactStrip = getDesignElement("contactStrip", config);
+  if (!contactStrip.visible) return;
+  const { x, y, w, h } = contactStrip;
 
   ctx.save();
   ctx.fillStyle = styles.strip || "#16843a";
-  roundedRect(ctx, x, y, w, h, 30);
+  roundedRect(ctx, x, y, w, h, Math.min(30, h / 2));
   ctx.fill();
 
   ctx.fillStyle = "#ffffff";
   ctx.beginPath();
-  ctx.arc(x + 34, y + h / 2, 23, 0, Math.PI * 2);
+  ctx.arc(x + Math.min(34, h * 0.62), y + h / 2, Math.min(23, h * 0.4), 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = styles.strip || "#16843a";
-  ctx.font = "900 24px Arial, sans-serif";
+  ctx.font = `900 ${Math.max(12, Math.min(24, h * 0.42))}px Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("TEL", x + 34, y + h / 2 + 1);
+  ctx.fillText("TEL", x + Math.min(34, h * 0.62), y + h / 2 + 1);
 
   ctx.fillStyle = "#ffffff";
-  fittedText(ctx, state.brand?.phone || "", x + 70, y + 41, 330, 34, 20, "950", "Arial, sans-serif");
+  fittedText(ctx, state.brand?.phone || "", x + Math.min(70, h * 1.25), y + h * 0.71, w * 0.39, Math.min(34, h * 0.58), 14, "950", "Arial, sans-serif");
   ctx.textAlign = "right";
-  fittedText(ctx, `VALID : ${state.brand?.validUntil || ""}`, x + w - 14, y + 40, 310, 28, 16, "950", "Arial, sans-serif", "right");
+  fittedText(ctx, `VALID : ${state.brand?.validUntil || ""}`, x + w - 14, y + h * 0.69, w * 0.37, Math.min(28, h * 0.5), 12, "950", "Arial, sans-serif", "right");
   ctx.restore();
 }
 
-function drawProducts(ctx, config) {
+function drawProducts(ctx, config, interactive = false) {
   state.hitAreas = [];
   const products = selectedProducts().slice(0, config.maxProducts);
   const rows = Math.max(1, Number(config.rows));
   const columns = Math.max(1, Number(config.columns));
   const gap = Number(config.gridGap || 0);
   const grid = getGridRegion(config);
+  if (grid.w <= 0 || grid.h <= 0) return;
   const cellW = (grid.w - gap * (columns - 1)) / columns;
   const cellH = (grid.h - gap * (rows - 1)) / rows;
 
@@ -1349,7 +1932,7 @@ function drawProducts(ctx, config) {
     drawPriceBadge(ctx, product, x + Math.max(8, cellW * 0.12), y + 9, Math.min(config.badgeSize, cellW - 14), Math.min(78, cellH * 0.42), config.styles.badge, config.priceTagMode);
     drawProductNameBar(ctx, product, x, y, cellW, cellH, config);
 
-    if (selected) {
+    if (selected && interactive && !state.designMode) {
       ctx.strokeStyle = "#1b4d8f";
       ctx.lineWidth = 4;
       ctx.strokeRect(x + 3, y + 3, cellW - 6, cellH - 6);
@@ -1497,14 +2080,12 @@ function drawPriceBadge(ctx, product, x, y, w, h, color, mode) {
 }
 
 function getGridRegion(config) {
-  const safeLeft = 8;
-  const safeBottom = 8;
-  const y = config.headerHeight + 4;
+  const grid = getDesignElement("productGrid", config);
   return {
-    x: safeLeft,
-    y,
-    w: config.width - safeLeft * 2,
-    h: config.height - y - safeBottom
+    x: grid.x,
+    y: grid.y,
+    w: grid.visible ? grid.w : 0,
+    h: grid.visible ? grid.h : 0
   };
 }
 
@@ -1647,6 +2228,17 @@ function validateProductImageFile(file) {
 
 function sanitizeImageStyle(value) {
   return IMAGE_STYLE_VALUES.has(value) ? value : "auto";
+}
+
+function normalizeBrand(brand = {}) {
+  return {
+    ...brand,
+    hypermarketLabel: typeof brand.hypermarketLabel === "string" ? brand.hypermarketLabel : "HYPERMARKET",
+    logoDataUrl: typeof brand.logoDataUrl === "string" ? brand.logoDataUrl : DEFAULT_LOGO_SETTINGS.logoDataUrl,
+    logoX: clamp(Number(brand.logoX ?? DEFAULT_LOGO_SETTINGS.logoX), 0, DEFAULT_CONFIG.width),
+    logoY: clamp(Number(brand.logoY ?? DEFAULT_LOGO_SETTINGS.logoY), 0, DEFAULT_CONFIG.height),
+    logoWidth: clamp(Number(brand.logoWidth ?? DEFAULT_LOGO_SETTINGS.logoWidth), 50, 420)
+  };
 }
 
 function imageStyleLabel(value) {

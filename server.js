@@ -33,7 +33,7 @@ const imageUpload = multer({
 });
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "8mb" }));
+app.use(express.json({ limit: "15mb" }));
 
 app.use("/assets", express.static(path.join(__dirname, "assets"), { dotfiles: "ignore" }));
 app.use("/sample-products", express.static(path.join(__dirname, "public", "sample-products"), { dotfiles: "ignore" }));
@@ -61,6 +61,35 @@ app.get("/api/brand", asyncHandler(async (_request, response) => {
 
 app.put("/api/brand", asyncHandler(async (request, response) => {
   response.json({ brand: await store.updateBrand(request.body || {}) });
+}));
+
+app.post("/api/brand/upload-logo", parseLogoUpload, asyncHandler(async (request, response) => {
+  const file = request.file;
+  if (!file) {
+    response.status(400).json({ error: "Choose a logo image to upload." });
+    return;
+  }
+
+  const extension = imageExtension(file.mimetype);
+  if (!extension) {
+    response.status(415).json({ error: "Upload PNG, JPG, or WebP only." });
+    return;
+  }
+
+  const savedLogo = await store.saveBrandLogo({
+    buffer: file.buffer,
+    mediaType: file.mimetype,
+    extension
+  });
+  const brand = await store.updateBrand({
+    logoDataUrl: savedLogo.publicUrl
+  });
+
+  response.status(201).json({
+    uploaded: true,
+    logoUrl: savedLogo.publicUrl,
+    brand
+  });
 }));
 
 app.get("/api/products", asyncHandler(async (_request, response) => {
@@ -224,6 +253,24 @@ function asyncHandler(handler) {
 
 function parseProductImageUpload(request, response, next) {
   imageUpload.single("image")(request, response, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error instanceof multer.MulterError) {
+      const uploadError = new Error(error.code === "LIMIT_FILE_SIZE" ? "Image must be 10MB or smaller." : error.message);
+      uploadError.status = error.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      next(uploadError);
+      return;
+    }
+
+    next(error);
+  });
+}
+
+function parseLogoUpload(request, response, next) {
+  imageUpload.single("logo")(request, response, (error) => {
     if (!error) {
       next();
       return;
